@@ -12,7 +12,11 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IUsuarioNegocio usuarios, IConfiguration config) : ControllerBase
+public class AuthController(
+    IUsuarioNegocio usuarios,
+    IVerificacionNegocio verificacion,
+    ISesionNegocio sesiones,
+    IConfiguration config) : ControllerBase
 {
     /// POST /api/auth/register — público. Crea un usuario (email único + hash BCrypt).
     [HttpPost("register")]
@@ -23,6 +27,10 @@ public class AuthController(IUsuarioNegocio usuarios, IConfiguration config) : C
 
         if (creado is null)
             return BadRequest(new { mensaje = "Ya existe un usuario con ese email." });
+
+        // A8: dispara el código de verificación de email (mismo mecanismo que
+        // forgot-password, distinto Tipo). No bloquea el registro si algo falla acá.
+        await verificacion.SolicitarCodigoAsync(creado.Email, TiposCodigoVerificacion.VerificacionEmail);
 
         return Ok(creado);
     }
@@ -41,8 +49,61 @@ public class AuthController(IUsuarioNegocio usuarios, IConfiguration config) : C
         var roles = await usuarios.ObtenerNombresRolesAsync(usuario.UsuarioId);
         if (roles.Count == 0) roles.Add("User");
 
-        var (token, expiraEn) = GenerarToken(usuario, roles);
+        var (token, expiraEn, jti) = GenerarToken(usuario, roles);
+
+        // D7: una fila por login exitoso, para "Dispositivos conectados".
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await sesiones.RegistrarSesionAsync(usuario.UsuarioId, jti, req.DispositivoNombre, ip);
+
         return Ok(new LoginResponse(token, expiraEn, usuario));
+    }
+
+    /// POST /api/auth/forgot-password — público. Genera y "envía" (log) un código
+    /// de 6 dígitos. Nunca revela si el email existe; devuelve 429 si hay throttle.
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
+    {
+        var resultado = await verificacion.SolicitarCodigoAsync(req.Email, TiposCodigoVerificacion.ResetPassword);
+        if (!resultado.Ok)
+            return StatusCode(429, new { mensaje = resultado.Mensaje, segundosRestantes = resultado.SegundosRestantes });
+
+        return Ok(new { mensaje = resultado.Mensaje });
+    }
+
+    /// POST /api/auth/reset-password — público. Valida el código de 6 dígitos y,
+    /// si es válido, actualiza la contraseña (BCrypt).
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        var resultado = await verificacion.ResetearPasswordAsync(req.Email, req.Codigo, req.NuevaPassword);
+        if (!resultado.Ok)
+            return BadRequest(new { mensaje = resultado.Mensaje });
+
+        return Ok(new { mensaje = resultado.Mensaje });
+    }
+
+    /// POST /api/auth/verify-email — público. Valida el código de 6 dígitos enviado
+    /// al registrarse y marca Usuario.EmailVerificado = true.
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest req)
+    {
+        var resultado = await verificacion.VerificarEmailAsync(req.Email, req.Codigo);
+        if (!resultado.Ok)
+            return BadRequest(new { mensaje = resultado.Mensaje });
+
+        return Ok(new { mensaje = resultado.Mensaje });
+    }
+
+    /// POST /api/auth/resend-verification-email — público. Reenvía el código de
+    /// verificación de email (mismo throttle de 60s que forgot-password).
+    [HttpPost("resend-verification-email")]
+    public async Task<IActionResult> ResendVerificationEmail([FromBody] ForgotPasswordRequest req)
+    {
+        var resultado = await verificacion.SolicitarCodigoAsync(req.Email, TiposCodigoVerificacion.VerificacionEmail);
+        if (!resultado.Ok)
+            return StatusCode(429, new { mensaje = resultado.Mensaje, segundosRestantes = resultado.SegundosRestantes });
+
+        return Ok(new { mensaje = resultado.Mensaje });
     }
 
     /// GET /api/auth/me — protegido. Devuelve el usuario del token.
@@ -58,19 +119,37 @@ public class AuthController(IUsuarioNegocio usuarios, IConfiguration config) : C
         return usuario is null ? NotFound() : Ok(usuario);
     }
 
-    private (string token, DateTime expiraEn) GenerarToken(UsuarioResponse usuario, IEnumerable<string> roles)
+    /// POST /api/auth/change-password — protegido. Requiere la contraseña actual
+    /// (BCrypt.Verify) para poder setear la nueva.
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idClaim, out var usuarioId))
+            return Unauthorized();
+
+        var resultado = await usuarios.CambiarPasswordAsync(usuarioId, req.PasswordActual, req.PasswordNueva);
+        if (!resultado.Ok)
+            return BadRequest(new { mensaje = resultado.Mensaje });
+
+        return Ok(new { mensaje = resultado.Mensaje });
+    }
+
+    private (string token, DateTime expiraEn, string jti) GenerarToken(UsuarioResponse usuario, IEnumerable<string> roles)
     {
         var jwt = config.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
         var credenciales = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var minutos = int.Parse(jwt["ExpiresInMinutes"] ?? "120");
         var expiraEn = DateTime.UtcNow.AddMinutes(minutos);
+        var jti = Guid.NewGuid().ToString();
 
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, usuario.UsuarioId.ToString()),
             new(ClaimTypes.Name, usuario.Email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Jti, jti),
         };
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
@@ -81,6 +160,6 @@ public class AuthController(IUsuarioNegocio usuarios, IConfiguration config) : C
             expires: expiraEn,
             signingCredentials: credenciales);
 
-        return (new JwtSecurityTokenHandler().WriteToken(token), expiraEn);
+        return (new JwtSecurityTokenHandler().WriteToken(token), expiraEn, jti);
     }
 }

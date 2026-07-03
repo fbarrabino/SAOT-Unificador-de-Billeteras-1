@@ -70,6 +70,21 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
     public Task<List<string>> ObtenerNombresRolesAsync(int usuarioId)
         => repo.ObtenerNombresRolesAsync(usuarioId);
 
+    public async Task<ValidarCodigoResult> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNueva)
+    {
+        var usuario = await repo.ObtenerPorIdAsync(usuarioId);
+        if (usuario is null)
+            return new ValidarCodigoResult(false, "Usuario no encontrado.");
+
+        if (!BCrypt.Net.BCrypt.Verify(passwordActual, usuario.PasswordHash))
+            return new ValidarCodigoResult(false, "La contraseña actual es incorrecta.");
+
+        usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordNueva);
+        await repo.ActualizarAsync(usuario);
+
+        return new ValidarCodigoResult(true, "Contraseña actualizada correctamente.");
+    }
+
     private static UsuarioResponse Map(Usuario u)
-        => new(u.UsuarioId, u.Nombre, u.Apellido, u.Email, u.FechaAlta);
+        => new(u.UsuarioId, u.Nombre, u.Apellido, u.Email, u.FechaAlta, u.EmailVerificado);
 }

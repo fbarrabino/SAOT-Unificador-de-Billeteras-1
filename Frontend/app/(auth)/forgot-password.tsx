@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,7 +7,9 @@ import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Input } from '@/components/Input';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { colors, radii, type } from '@/theme/tokens';
+import { colors, fonts, radii, type } from '@/theme/tokens';
+import { forgotPassword } from '@/api/auth';
+import { ApiError } from '@/api/client';
 
 function LockIcon() {
   return (
@@ -21,6 +23,33 @@ function LockIcon() {
 }
 
 export default function ForgotPassword() {
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleEnviar = async () => {
+    if (!email.trim()) {
+      setError('Ingresá tu email.');
+      return;
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+      await forgotPassword(email);
+      router.push({ pathname: '/(auth)/email-sent', params: { email: email.trim().toLowerCase() } });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.status === 0
+          ? 'Sin conexión al servidor.'
+          : err.mensaje || 'No se pudo enviar el código.');
+      } else {
+        setError('Ocurrió un error inesperado.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <AuroraBackground />
@@ -36,16 +65,34 @@ export default function ForgotPassword() {
           <LockIcon />
           <Text style={styles.title}>¿Olvidaste tu contraseña?</Text>
           <Text style={styles.lead}>
-            Te enviaremos un link al email para que puedas crear una nueva.
+            Te enviaremos un código de 6 dígitos al email para que puedas crear una nueva.
           </Text>
 
           <View style={{ marginTop: 24 }}>
-            <Input label="Email" placeholder="tu@email.com" keyboardType="email-address" autoCapitalize="none" />
+            <Input
+              label="Email"
+              placeholder="tu@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={v => { setEmail(v); if (error) setError(null); }}
+              editable={!isLoading}
+            />
           </View>
+
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           <View style={{ flex: 1 }} />
 
-          <PrimaryButton label="Enviar link" onPress={() => router.push('/(auth)/email-sent')} />
+          <PrimaryButton
+            label={isLoading ? 'Enviando...' : 'Enviar código'}
+            onPress={handleEnviar}
+            disabled={isLoading}
+          />
         </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -69,4 +116,19 @@ const styles = StyleSheet.create({
   },
   title: { ...type.display, fontSize: 26, marginBottom: 10 },
   lead: { ...type.body, lineHeight: 21 },
+  errorBanner: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.35)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  errorText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#f87171',
+    lineHeight: 18,
+  },
 });

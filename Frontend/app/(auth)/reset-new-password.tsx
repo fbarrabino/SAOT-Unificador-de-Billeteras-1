@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Input } from '@/components/Input';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { colors, fonts, type } from '@/theme/tokens';
+import { resetPassword } from '@/api/auth';
+import { ApiError } from '@/api/client';
 
 function Rule({ ok, text }: { ok?: boolean; text: string }) {
   return (
@@ -31,12 +33,28 @@ function Rule({ ok, text }: { ok?: boolean; text: string }) {
 }
 
 export default function ResetNewPassword() {
+  const { email, codigo } = useLocalSearchParams<{ email: string; codigo: string }>();
   const [pwd, setPwd] = React.useState('');
   const [pwd2, setPwd2] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const long = pwd.length >= 8;
   const num = /\d/.test(pwd);
   const match = pwd.length > 0 && pwd === pwd2;
   const ready = long && num && match;
+
+  const handleGuardar = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      await resetPassword(email, codigo, pwd);
+      router.push('/(auth)/reset-success');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.mensaje : 'Ocurrió un error inesperado.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -78,13 +96,19 @@ export default function ResetNewPassword() {
             <Rule ok={num} text="Incluye un número" />
             <Rule ok={match} text="Las contraseñas coinciden" />
           </View>
+
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
         </ScrollView>
 
         <View style={styles.footer}>
           <PrimaryButton
-            label="Guardar contraseña"
-            onPress={() => router.push('/(auth)/reset-success')}
-            disabled={!ready}
+            label={isLoading ? 'Guardando...' : 'Guardar contraseña'}
+            onPress={handleGuardar}
+            disabled={!ready || isLoading}
           />
         </View>
         </KeyboardAvoidingView>
@@ -101,5 +125,20 @@ const styles = StyleSheet.create({
   rules: { gap: 8, marginTop: 10 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ruleText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+  errorBanner: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.35)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  errorText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#f87171',
+    lineHeight: 18,
+  },
   footer: { padding: 20 },
 });

@@ -28,4 +28,7 @@ public class Usuario
 
     // Default GETDATE() a nivel DB (ver db/init.sql y BilleterasContext).
     public DateTime FechaAlta { get; set; }
+
+    /// A8 — false al registrarse; pasa a true al validar el código de verificación de email.
+    public bool EmailVerificado { get; set; } = false;
 }

@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,8 +10,30 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 [ApiController]
 [Route("api/usuarios")]
 [Authorize]
-public class UsuariosController(IUsuarioNegocio negocio) : ControllerBase
+public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones) : ControllerBase
 {
+    // Extrae el UsuarioId / Jti del JWT (mismo patrón que TicketsSoporteController).
+    private int UsuarioId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private string Jti => User.FindFirstValue(JwtRegisteredClaimNames.Jti)!;
+
+    // ── D7: Dispositivos conectados ───────────────────────────────────────────
+
+    /// GET /api/usuarios/me/sesiones — sesiones activas del usuario autenticado.
+    [HttpGet("me/sesiones")]
+    public async Task<ActionResult<List<SesionResponse>>> ListarSesiones()
+        => Ok(await sesiones.ListarSesionesAsync(UsuarioId, Jti));
+
+    /// POST /api/usuarios/me/sesiones/{id}/revocar — cierra una sesión propia.
+    [HttpPost("me/sesiones/{id:int}/revocar")]
+    public async Task<IActionResult> RevocarSesion(int id)
+    {
+        var ok = await sesiones.RevocarSesionAsync(UsuarioId, id);
+        if (!ok)
+            return NotFound(new { mensaje = "La sesión no existe o no te pertenece." });
+
+        return Ok(new { mensaje = "Sesión cerrada correctamente." });
+    }
+
     // El alta de usuario se hace por POST /api/auth/register.
 
     [HttpGet]

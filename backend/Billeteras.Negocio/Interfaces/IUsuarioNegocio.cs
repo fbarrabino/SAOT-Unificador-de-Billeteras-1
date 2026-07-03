@@ -20,4 +20,8 @@ public interface IUsuarioNegocio
 
     /// BE-11 — Nombres de roles asignados al usuario, para inyectar en el JWT.
     Task<List<string>> ObtenerNombresRolesAsync(int usuarioId);
+
+    /// D6 — Cambia la contraseña verificando primero la actual (BCrypt).
+    /// Devuelve Ok=false si el usuario no existe o passwordActual no coincide.
+    Task<ValidarCodigoResult> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNueva);
 }
