@@ -1,32 +1,47 @@
 import React from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import { View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/theme/tokens';
 
+/**
+ * Fondo "aurora" (glows difuminados sobre negro).
+ *
+ * Antes usaba react-native-svg con RadialGradient, que NO renderiza de forma
+ * confiable en emuladores/dev-builds (aparecía todo negro) aunque sí funcionaba
+ * en Expo Go. Ahora se arma con expo-linear-gradient, que renderiza idéntico en
+ * todas las plataformas. Cada capa es un gradiente diagonal que va de un color
+ * translúcido a transparente, imitando un glow que sale de una esquina.
+ *
+ * Es responsive: usa StyleSheet.absoluteFill, así se adapta a cualquier tamaño
+ * de pantalla sin depender de medidas fijas.
+ */
 export function AuroraBackground() {
-  const { width, height } = useWindowDimensions();
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
-      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <RadialGradient id="blue" cx="20%" cy="10%" r="60%">
-            <Stop offset="0%" stopColor="#285AA0" stopOpacity="0.55" />
-            <Stop offset="65%" stopColor="#285AA0" stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="violet" cx="88%" cy="14%" r="55%">
-            <Stop offset="0%" stopColor="#7850C8" stopOpacity="0.45" />
-            <Stop offset="65%" stopColor="#7850C8" stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="lime" cx="80%" cy="46%" r="55%">
-            <Stop offset="0%" stopColor="#8CC850" stopOpacity="0.28" />
-            <Stop offset="70%" stopColor="#8CC850" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect width={width} height={height} fill="url(#blue)" />
-        <Rect width={width} height={height} fill="url(#violet)" />
-        <Rect width={width} height={height} fill="url(#lime)" />
-      </Svg>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} pointerEvents="none">
+      {/* Glow azul — esquina superior izquierda */}
+      <LinearGradient
+        colors={['rgba(40,90,160,0.55)', 'rgba(40,90,160,0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.9, y: 0.7 }}
+        locations={[0, 0.6]}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Glow violeta — esquina superior derecha */}
+      <LinearGradient
+        colors={['rgba(120,80,200,0.45)', 'rgba(120,80,200,0)']}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0.2, y: 0.7 }}
+        locations={[0, 0.6]}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Glow lime — costado derecho, algo más abajo */}
+      <LinearGradient
+        colors={['rgba(140,200,80,0.26)', 'rgba(140,200,80,0)']}
+        start={{ x: 1, y: 0.42 }}
+        end={{ x: 0.3, y: 0.95 }}
+        locations={[0, 0.55]}
+        style={StyleSheet.absoluteFill}
+      />
     </View>
   );
 }
