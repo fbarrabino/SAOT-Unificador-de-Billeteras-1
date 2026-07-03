@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors, radii, type } from '@/theme/tokens';
+import { colors, type } from '@/theme/tokens';
 
 export function ScreenHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
@@ -27,10 +27,9 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   btn: {
+    // Área táctil de 40x40 pero SIN recuadro: se ve solo la flecha.
     width: 40,
     height: 40,
-    borderRadius: radii.icon || 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },

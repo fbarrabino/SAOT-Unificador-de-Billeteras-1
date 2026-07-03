@@ -74,13 +74,16 @@ export default function ResetCode() {
           {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
         </View>
 
-        <View style={styles.footer}>
-          <PrimaryButton
-            label="Verificar código"
-            onPress={handleContinuar}
-            disabled={code.length < 6}
-          />
-        </View>
+              <View style={styles.footer}>
+                <PrimaryButton
+                  label="Verificar código"
+                  onPress={handleContinuar}
+                  disabled={code.length < 6}
+                />
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
