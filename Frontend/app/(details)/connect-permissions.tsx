@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -28,17 +29,19 @@ export default function ConnectPermissionsScreen() {
     const [historyEnabled, setHistoryEnabled] = useState(true);
     const [operateEnabled, setOperateEnabled] = useState(false);
 
-    // 3. NAVEGACIÓN DE FRANCO (B4-FE): Dirigir a la nueva pantalla de monto
+    // Vinculación automática: NO le pedimos el saldo al usuario (la app se
+    // "vincula sola"). El saldo se detecta ficticio en connect-syncing, así que
+    // vamos directo a la pantalla de sincronización.
     const handleContinue = () => {
-        router.push({ pathname: '/(details)/connect-amount', params: { wallet: paramKey } });
+        router.push({ pathname: '/(details)/connect-syncing', params: { wallet: paramKey } });
     };
 
     return (
         <View style={styles.container}>
             <AuroraBackground />
-            <View style={{ paddingTop: 48 }}>
+            <SafeAreaView edges={['top']}>
                 <ScreenHeader title="Permisos" />
-            </View>
+            </SafeAreaView>
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 <View style={styles.logosRow}>
