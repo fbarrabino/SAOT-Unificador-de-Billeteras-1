@@ -31,6 +31,7 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
     public DbSet<MetodoPagoExterno> MetodosPagoExternos => Set<MetodoPagoExterno>();
     public DbSet<CodigoVerificacion> CodigosVerificacion => Set<CodigoVerificacion>();
+    public DbSet<UsuarioSesion> UsuariosSesiones => Set<UsuarioSesion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,6 +144,14 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
             .HasOne(c => c.Usuario)
             .WithMany()
             .HasForeignKey(c => c.UsuarioId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // ── UsuarioSesion (D7) ─────────────────────────────────────────────────
+        // Sesión → Usuario (NoAction: evita ciclo cascade con Usuario)
+        modelBuilder.Entity<UsuarioSesion>()
+            .HasOne(s => s.Usuario)
+            .WithMany()
+            .HasForeignKey(s => s.UsuarioId)
             .OnDelete(DeleteBehavior.NoAction);
     }
 }

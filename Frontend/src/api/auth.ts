@@ -8,7 +8,24 @@
  *  - logout                 → borra el token de memoria
  */
 
+import { Platform } from 'react-native';
 import { api, setToken, getToken, ApiError } from './client';
+
+// D7: nombre de dispositivo que mandamos en el login para identificar la
+// sesión en "Dispositivos conectados". Simple a propósito (no hay librería
+// de device-info en el proyecto todavía).
+function nombreDispositivoActual(): string {
+  switch (Platform.OS) {
+    case 'ios':
+      return 'iPhone · App';
+    case 'android':
+      return 'Android · App';
+    case 'web':
+      return 'Navegador web';
+    default:
+      return `${Platform.OS} · App`;
+  }
+}
 
 // ─── Tipos que devuelve el backend ────────────────────────────────────────────
 
@@ -52,7 +69,7 @@ export async function login(
   try {
     const data = await api.post<LoginResponse>(
       '/api/auth/login',
-      { email: email.trim().toLowerCase(), password },
+      { email: email.trim().toLowerCase(), password, dispositivoNombre: nombreDispositivoActual() },
       false, // endpoint público
     );
 

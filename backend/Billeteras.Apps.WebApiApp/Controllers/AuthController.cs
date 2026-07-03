@@ -12,7 +12,11 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IUsuarioNegocio usuarios, IVerificacionNegocio verificacion, IConfiguration config) : ControllerBase
+public class AuthController(
+    IUsuarioNegocio usuarios,
+    IVerificacionNegocio verificacion,
+    ISesionNegocio sesiones,
+    IConfiguration config) : ControllerBase
 {
     /// POST /api/auth/register — público. Crea un usuario (email único + hash BCrypt).
     [HttpPost("register")]
@@ -45,7 +49,12 @@ public class AuthController(IUsuarioNegocio usuarios, IVerificacionNegocio verif
         var roles = await usuarios.ObtenerNombresRolesAsync(usuario.UsuarioId);
         if (roles.Count == 0) roles.Add("User");
 
-        var (token, expiraEn) = GenerarToken(usuario, roles);
+        var (token, expiraEn, jti) = GenerarToken(usuario, roles);
+
+        // D7: una fila por login exitoso, para "Dispositivos conectados".
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await sesiones.RegistrarSesionAsync(usuario.UsuarioId, jti, req.DispositivoNombre, ip);
+
         return Ok(new LoginResponse(token, expiraEn, usuario));
     }
 
@@ -127,19 +136,20 @@ public class AuthController(IUsuarioNegocio usuarios, IVerificacionNegocio verif
         return Ok(new { mensaje = resultado.Mensaje });
     }
 
-    private (string token, DateTime expiraEn) GenerarToken(UsuarioResponse usuario, IEnumerable<string> roles)
+    private (string token, DateTime expiraEn, string jti) GenerarToken(UsuarioResponse usuario, IEnumerable<string> roles)
     {
         var jwt = config.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
         var credenciales = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var minutos = int.Parse(jwt["ExpiresInMinutes"] ?? "120");
         var expiraEn = DateTime.UtcNow.AddMinutes(minutos);
+        var jti = Guid.NewGuid().ToString();
 
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, usuario.UsuarioId.ToString()),
             new(ClaimTypes.Name, usuario.Email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Jti, jti),
         };
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
@@ -150,6 +160,6 @@ public class AuthController(IUsuarioNegocio usuarios, IVerificacionNegocio verif
             expires: expiraEn,
             signingCredentials: credenciales);
 
-        return (new JwtSecurityTokenHandler().WriteToken(token), expiraEn);
+        return (new JwtSecurityTokenHandler().WriteToken(token), expiraEn, jti);
     }
 }

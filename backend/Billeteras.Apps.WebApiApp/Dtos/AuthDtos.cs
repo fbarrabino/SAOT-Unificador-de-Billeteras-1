@@ -13,9 +13,12 @@ public record RegisterRequest(
     [Required, MinLength(6), MaxLength(100)] string Password);
 
 /// Cuerpo de POST /api/auth/login.
+/// DispositivoNombre es opcional: lo manda el FE (ej. "iPhone · App") para
+/// identificar la sesión en "Dispositivos conectados" (D7).
 public record LoginRequest(
     [Required, EmailAddress] string Email,
-    [Required] string Password);
+    [Required] string Password,
+    string? DispositivoNombre = null);
 
 public record LoginResponse(string Token, DateTime ExpiresAt, UsuarioResponse Usuario);
 

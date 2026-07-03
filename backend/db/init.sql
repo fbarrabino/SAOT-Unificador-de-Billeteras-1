@@ -260,6 +260,20 @@ CREATE TABLE [dbo].[CodigoVerificacion] (
 );
 GO
 
+-- Una fila por login exitoso: dispositivos conectados / revocar sesiones (D7).
+IF OBJECT_ID(N'dbo.UsuarioSesion', N'U') IS NULL
+CREATE TABLE [dbo].[UsuarioSesion] (
+    [SesionId] INT IDENTITY(1,1) PRIMARY KEY,
+    [UsuarioId] INT NOT NULL FOREIGN KEY REFERENCES [dbo].[Usuario]([UsuarioId]),
+    [DispositivoNombre] VARCHAR(150) NULL,
+    [IpUltimoLogin] VARCHAR(45) NULL,
+    [FechaCreacion] DATETIME NOT NULL DEFAULT GETDATE(),
+    [UltimaActividad] DATETIME NOT NULL DEFAULT GETDATE(),
+    [JwtJti] VARCHAR(100) NOT NULL,
+    [Activa] BIT NOT NULL DEFAULT 1
+);
+GO
+
 -- 6. MÓDULO DE MÉTODOS DE PAGO Y NOTIFICACIONES
 IF OBJECT_ID(N'dbo.Notificacion', N'U') IS NULL
 CREATE TABLE [dbo].[Notificacion] (
