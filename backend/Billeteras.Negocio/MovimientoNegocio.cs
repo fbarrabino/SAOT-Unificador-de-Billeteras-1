@@ -25,7 +25,8 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
             CuentaBilleteraId = req.CuentaBilleteraId,
             CategoriaId = req.CategoriaId,
             Fecha = req.Fecha,
-            Descripcion = req.Descripcion,
+            // Saneamos el texto libre antes de persistir (anti-XSS almacenado, 5.3).
+            Descripcion = Sanitizador.LimpiarTexto(req.Descripcion),
             Monto = req.Monto,
             Tipo = req.Tipo
         };
@@ -42,7 +43,7 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
         movimiento.CuentaBilleteraId = req.CuentaBilleteraId;
         movimiento.CategoriaId = req.CategoriaId;
         movimiento.Fecha = req.Fecha;
-        movimiento.Descripcion = req.Descripcion;
+        movimiento.Descripcion = Sanitizador.LimpiarTexto(req.Descripcion);
         movimiento.Monto = req.Monto;
         movimiento.Tipo = req.Tipo;
 
@@ -51,6 +52,39 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
     }
 
     public Task<bool> EliminarAsync(int id) => repo.EliminarAsync(id);
+
+    // ─── Paginado + filtrado (rúbrica 3.4 y 3.5) ────────────────────────────────
+    public async Task<PagedResult<MovimientoResponse>> ObtenerPaginadoPorUsuarioAsync(
+        int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
+    {
+        // Límites defensivos: página mínima 1, tamaño entre 1 y 100 (evita que un
+        // cliente pida pageSize=100000 y se traiga toda la tabla).
+        pageNumber = pageNumber < 1 ? 1 : pageNumber;
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        // Normalizamos el filtro para que ande venga como venga del front.
+        tipo = NormalizarTipo(tipo);
+        texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+        var (items, total) = await repo.ObtenerPaginadoPorUsuarioAsync(
+            usuarioId, tipo, texto, pageNumber, pageSize);
+
+        return new PagedResult<MovimientoResponse>(
+            items.Select(Map).ToList(), pageNumber, pageSize, total);
+    }
+
+    /// Lleva el filtro de tipo a la forma canónica "Ingreso"/"Egreso". Acepta
+    /// también "in"/"out" (como los usa el front) y null/"" = sin filtro.
+    private static string? NormalizarTipo(string? tipo)
+    {
+        if (string.IsNullOrWhiteSpace(tipo)) return null;
+        return tipo.Trim().ToLowerInvariant() switch
+        {
+            "in" or "ingreso" => "Ingreso",
+            "out" or "egreso" => "Egreso",
+            _ => tipo.Trim()
+        };
+    }
 
     private static MovimientoResponse Map(Movimiento m)
         => new(

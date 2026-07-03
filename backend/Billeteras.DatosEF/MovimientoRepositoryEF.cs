@@ -41,4 +41,43 @@ public class MovimientoRepositoryEF(BilleterasContext ctx) : IMovimientoReposito
         ctx.Movimientos.Remove(entidad);
         return await ctx.SaveChangesAsync() > 0;
     }
+
+    // ─── Paginado + filtrado REAL en la base (rúbrica 3.4 y 3.5) ─────────────────
+    public async Task<(List<Movimiento> Items, int TotalCount)> ObtenerPaginadoPorUsuarioAsync(
+        int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
+    {
+        // Base: SOLO los movimientos de las cuentas del usuario (filtro por el
+        // join CuentaBilletera.UsuarioId). EF lo traduce a un JOIN/EXISTS en SQL.
+        var query = ctx.Movimientos
+            .Include(m => m.Categoria)
+            .Include(m => m.CuentaBilletera)
+            .Where(m => m.CuentaBilletera!.UsuarioId == usuarioId);
+
+        // Filtro 1 — tipo (Ingreso/Egreso). La collation por defecto de SQL Server
+        // (CI_AS) hace la comparación case-insensitive, así que matchea aunque en
+        // la base convivan "Ingreso" e "INGRESO".
+        if (!string.IsNullOrWhiteSpace(tipo))
+            query = query.Where(m => m.Tipo == tipo);
+
+        // Filtro 2 — texto libre sobre la descripción o el nombre de la categoría.
+        if (!string.IsNullOrWhiteSpace(texto))
+            query = query.Where(m =>
+                (m.Descripcion != null && m.Descripcion.Contains(texto)) ||
+                (m.Categoria != null && m.Categoria.Nombre.Contains(texto)));
+
+        // Total ANTES de paginar → para saber cuántas páginas hay.
+        var total = await query.CountAsync();
+
+        // La página se resuelve en el motor con OFFSET/FETCH (Skip/Take).
+        // Orden estable (Fecha y, a igualdad, MovimientoId) para no repetir ni
+        // saltear filas entre páginas.
+        var items = await query
+            .OrderByDescending(m => m.Fecha)
+            .ThenByDescending(m => m.MovimientoId)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, total);
+    }
 }

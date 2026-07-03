@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -55,7 +55,13 @@ export default function ForgotPassword() {
       <AuroraBackground />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <ScreenHeader title="Recuperar contraseña" />
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <LockIcon />
           <Text style={styles.title}>¿Olvidaste tu contraseña?</Text>
           <Text style={styles.lead}>
@@ -88,6 +94,7 @@ export default function ForgotPassword() {
             disabled={isLoading}
           />
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );

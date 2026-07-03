@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Billeteras.Datos;
 using Billeteras.Datos.Interfaces;
 using Billeteras.DatosEF;
@@ -102,6 +103,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 
+// ─── Swagger / OpenAPI (rúbrica 6.3 — documentación de la API) ────────────────
+// Genera la doc interactiva en /swagger. Con AddSecurityDefinition sumamos el
+// botón "Authorize" para pegar el JWT y probar los endpoints protegidos.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Billeteras API — Unificador de Billeteras (SaOT)",
+        Version = "v1",
+        Description = "API REST del TP Integrador de Programación III (UTN FRRe). "
+                    + "Para probar endpoints protegidos: hacé login en /api/auth/login, "
+                    + "copiá el token y pegalo en el botón Authorize."
+    });
+
+    // Definición del esquema Bearer (Microsoft.OpenApi 2.x → sin Reference inline).
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Pegá SOLO el token JWT (sin escribir 'Bearer ' adelante)."
+    });
+
+    // En Swashbuckle 10 el requirement se arma con una función que recibe el
+    // documento; la referencia al esquema se hace con OpenApiSecuritySchemeReference.
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer", document, null), new List<string>() }
+    });
+});
+
 // CORS abierto (política "AllowAll")
 builder.Services.AddCors(options =>
 {
@@ -131,6 +166,15 @@ catch (Exception ex)
 }
 
 // Pipeline
+
+// Swagger UI disponible en /swagger (lo dejamos siempre activo para la demo/corrección).
+app.UseSwagger();
+app.UseSwaggerUI(o =>
+{
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Billeteras API v1");
+    o.DocumentTitle = "Billeteras API — Swagger";
+});
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("AllowAll");
