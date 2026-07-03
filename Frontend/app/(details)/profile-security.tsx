@@ -48,8 +48,8 @@ export default function ProfileSecurityScreen() {
 
                 <Text style={styles.sectionLabel}>CUENTA</Text>
                 <View style={styles.card}>
-                    <LinkRow icon="lock" title="Cambiar contraseña" />
-                    <LinkRow icon="smartphone" title="Dispositivos conectados" subtitle="2 dispositivos activos" />
+                    <LinkRow icon="lock" title="Cambiar contraseña" onPress={() => router.push('/change-password')} />
+                    <LinkRow icon="smartphone" title="Dispositivos conectados" subtitle="Ver sesiones activas" onPress={() => router.push('/connected-devices')} />
                     <LinkRow
                         icon="log-out"
                         title="Cerrar sesión en todos lados"

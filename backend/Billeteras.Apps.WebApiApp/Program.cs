@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +55,14 @@ builder.Services.AddScoped<ICuentaBilleteraNegocio, CuentaBilleteraNegocio>();
 builder.Services.AddScoped<IMovimientoNegocio, MovimientoNegocio>();
 builder.Services.AddScoped<IContactoRepository, ContactoRepositoryEF>();
 
+// --- Códigos de verificación: reset de contraseña / verificación de email (A3/A4/A8) ---
+builder.Services.AddScoped<ICodigoVerificacionRepository, CodigoVerificacionRepositoryEF>();
+builder.Services.AddScoped<IVerificacionNegocio, VerificacionNegocio>();
+
+// --- Sesiones / dispositivos conectados (D7) ---
+builder.Services.AddScoped<IUsuarioSesionRepository, UsuarioSesionRepositoryEF>();
+builder.Services.AddScoped<ISesionNegocio, SesionNegocio>();
+
 // Autenticación JWT (Key, Issuer, Audience, ExpiresInMinutes desde appsettings.json)
 var jwt = builder.Configuration.GetSection("Jwt");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
@@ -69,6 +79,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],
             IssuerSigningKey = signingKey
+        };
+
+        // D7: si la sesión de este token fue revocada ("Cerrar" en Dispositivos
+        // conectados), el token deja de ser válido aunque su firma/expiración
+        // sigan siendo correctas.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var jti = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+                if (jti is null) return;
+
+                var repo = context.HttpContext.RequestServices.GetRequiredService<IUsuarioSesionRepository>();
+                var sesion = await repo.ObtenerPorJtiAsync(jti);
+                if (sesion is not null && !sesion.Activa)
+                    context.Fail("La sesión fue cerrada.");
+            }
         };
     });
 

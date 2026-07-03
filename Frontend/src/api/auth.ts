@@ -8,7 +8,24 @@
  *  - logout                 → borra el token de memoria
  */
 
+import { Platform } from 'react-native';
 import { api, setToken, getToken, ApiError } from './client';
+
+// D7: nombre de dispositivo que mandamos en el login para identificar la
+// sesión en "Dispositivos conectados". Simple a propósito (no hay librería
+// de device-info en el proyecto todavía).
+function nombreDispositivoActual(): string {
+  switch (Platform.OS) {
+    case 'ios':
+      return 'iPhone · App';
+    case 'android':
+      return 'Android · App';
+    case 'web':
+      return 'Navegador web';
+    default:
+      return `${Platform.OS} · App`;
+  }
+}
 
 // ─── Tipos que devuelve el backend ────────────────────────────────────────────
 
@@ -52,7 +69,7 @@ export async function login(
   try {
     const data = await api.post<LoginResponse>(
       '/api/auth/login',
-      { email: email.trim().toLowerCase(), password },
+      { email: email.trim().toLowerCase(), password, dispositivoNombre: nombreDispositivoActual() },
       false, // endpoint público
     );
 
@@ -105,11 +122,110 @@ export async function me(): Promise<UsuarioResponse> {
 }
 
 /**
+ * POST /api/auth/forgot-password
+ *
+ * Pide un código de 6 dígitos para resetear la contraseña. El backend nunca
+ * revela si el email existe: siempre responde 200 salvo que haya throttle
+ * (60s entre reenvíos), en cuyo caso lanza ApiError(429, ...).
+ */
+export async function forgotPassword(email: string): Promise<{ mensaje: string }> {
+  if (!email.trim()) {
+    throw new ApiError(400, 'El email es obligatorio.');
+  }
+
+  return api.post<{ mensaje: string }>(
+    '/api/auth/forgot-password',
+    { email: email.trim().toLowerCase() },
+    false,
+  );
+}
+
+/**
+ * POST /api/auth/reset-password
+ *
+ * Valida el código de 6 dígitos y, si es válido, actualiza la contraseña.
+ * Lanza ApiError(400, ...) si el código es inválido o expiró.
+ */
+export async function resetPassword(
+  email: string,
+  codigo: string,
+  nuevaPassword: string,
+): Promise<{ mensaje: string }> {
+  if (codigo.length !== 6) {
+    throw new ApiError(400, 'El código debe tener 6 dígitos.');
+  }
+  if (nuevaPassword.length < 6) {
+    throw new ApiError(400, 'La contraseña debe tener al menos 6 caracteres.');
+  }
+
+  return api.post<{ mensaje: string }>(
+    '/api/auth/reset-password',
+    { email: email.trim().toLowerCase(), codigo, nuevaPassword },
+    false,
+  );
+}
+
+/**
  * Cierra la sesión local borrando el token de memoria.
  * No hay endpoint de logout en el backend (el JWT simplemente expira).
  */
 export function logout(): void {
   setToken(null);
+}
+
+/**
+ * POST /api/auth/verify-email
+ *
+ * Valida el código de 6 dígitos enviado al registrarse.
+ * Lanza ApiError(400, ...) si el código es inválido o expiró.
+ */
+export async function verifyEmail(email: string, codigo: string): Promise<{ mensaje: string }> {
+  if (codigo.length !== 6) {
+    throw new ApiError(400, 'El código debe tener 6 dígitos.');
+  }
+
+  return api.post<{ mensaje: string }>(
+    '/api/auth/verify-email',
+    { email: email.trim().toLowerCase(), codigo },
+    false,
+  );
+}
+
+/**
+ * POST /api/auth/resend-verification-email
+ *
+ * Reenvía el código de verificación de email. Mismo throttle de 60s que
+ * forgot-password; lanza ApiError(429, ...) si se pide antes de tiempo.
+ */
+export async function resendVerificationEmail(email: string): Promise<{ mensaje: string }> {
+  return api.post<{ mensaje: string }>(
+    '/api/auth/resend-verification-email',
+    { email: email.trim().toLowerCase() },
+    false,
+  );
+}
+
+/**
+ * POST /api/auth/change-password
+ *
+ * Requiere sesión activa. Cambia la contraseña verificando la actual (BCrypt).
+ * Lanza ApiError(400, ...) si la contraseña actual es incorrecta.
+ */
+export async function changePassword(
+  passwordActual: string,
+  passwordNueva: string,
+): Promise<{ mensaje: string }> {
+  if (!passwordActual) {
+    throw new ApiError(400, 'Ingresá tu contraseña actual.');
+  }
+  if (passwordNueva.length < 6) {
+    throw new ApiError(400, 'La nueva contraseña debe tener al menos 6 caracteres.');
+  }
+
+  return api.post<{ mensaje: string }>('/api/auth/change-password', {
+    passwordActual,
+    passwordNueva,
+  });
 }
 
 // Re-exportamos para no tener que importar desde 'client' en los contextos

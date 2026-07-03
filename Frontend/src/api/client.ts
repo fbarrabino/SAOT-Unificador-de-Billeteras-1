@@ -2,9 +2,9 @@
  * client.ts — Cliente HTTP base de SaOT
  *
  * Centraliza TODAS las peticiones al backend:
- * - Adjunta el token JWT en cada request autenticado
- * - Tipifica los errores con ApiError (status + mensaje legible)
- * - Distingue error de red (sin conexión) de error del servidor
+ *  - Adjunta el token JWT en cada request autenticado
+ *  - Tipifica los errores con ApiError (status + mensaje legible)
+ *  - Distingue error de red (sin conexión) de error del servidor
  *
  * URL base: http://localhost:5001 (launchSettings.json del backend)
  * En producción cambiar BASE_URL por la URL del servidor real.
@@ -12,7 +12,7 @@
 
 // Para probar desde el celular vía Expo Go necesitamos la IP LAN, no localhost.
 // Cambiar a 'http://localhost:5001' si volvés a desarrollar solo en web.
-export const BASE_URL = 'http://192.168.0.149:5001';
+export const BASE_URL = 'http://localhost:5001';
 
 // ─── Token en memoria ─────────────────────────────────────────────────────────
 // En producción migrar a expo-secure-store para que persista entre sesiones.
@@ -30,9 +30,9 @@ export function getToken(): string | null {
 
 /**
  * Error que lanza el cliente cuando la respuesta no es exitosa.
- * - status 0   → sin conexión / backend caído
- * - status 4xx → error del cliente (credenciales, datos, etc.)
- * - status 5xx → error del servidor
+ *  - status 0   → sin conexión / backend caído
+ *  - status 4xx → error del cliente (credenciales, datos, etc.)
+ *  - status 5xx → error del servidor
  */
 export class ApiError extends Error {
   constructor(

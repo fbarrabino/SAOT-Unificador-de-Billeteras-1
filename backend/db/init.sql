@@ -26,9 +26,15 @@ CREATE TABLE dbo.Usuario
     Email        NVARCHAR(200)     NOT NULL,
     PasswordHash NVARCHAR(200)     NOT NULL,
     FechaAlta    DATETIME          NOT NULL CONSTRAINT DF_Usuario_FechaAlta DEFAULT (GETDATE()),
+    EmailVerificado BIT            NOT NULL CONSTRAINT DF_Usuario_EmailVerificado DEFAULT (0),
     CONSTRAINT PK_Usuario PRIMARY KEY (UsuarioId),
     CONSTRAINT UQ_Usuario_Email UNIQUE (Email)
 );
+GO
+
+-- A8: agrega EmailVerificado si la tabla Usuario ya existía de una corrida previa del script.
+IF COL_LENGTH(N'dbo.Usuario', N'EmailVerificado') IS NULL
+    ALTER TABLE dbo.Usuario ADD EmailVerificado BIT NOT NULL CONSTRAINT DF_Usuario_EmailVerificado DEFAULT (0);
 GO
 
 IF OBJECT_ID(N'dbo.Billetera', N'U') IS NULL
@@ -212,6 +218,14 @@ CREATE TABLE [dbo].[MotivoReporte] (
 );
 GO
 
+IF NOT EXISTS (SELECT 1 FROM [dbo].[MotivoReporte])
+INSERT INTO [dbo].[MotivoReporte] ([Titulo], [Gravedad]) VALUES
+    ('Pagos', 1),
+    ('Billeteras', 1),
+    ('Cuenta', 1),
+    ('Otro', 1);
+GO
+
 IF OBJECT_ID(N'dbo.TicketSoporte', N'U') IS NULL
 CREATE TABLE [dbo].[TicketSoporte] (
     [TicketId] INT IDENTITY(1,1) PRIMARY KEY,
@@ -238,6 +252,33 @@ CREATE TABLE [dbo].[TicketAdjunto] (
     [MensajeId] INT NOT NULL FOREIGN KEY REFERENCES [dbo].[TicketMensaje]([MensajeId]),
     [UrlArchivo] VARCHAR(MAX) NOT NULL,
     [TipoMime] VARCHAR(50) NOT NULL
+);
+GO
+
+-- Códigos de 6 dígitos para reset de contraseña / verificación de email (A3/A4/A8).
+IF OBJECT_ID(N'dbo.CodigoVerificacion', N'U') IS NULL
+CREATE TABLE [dbo].[CodigoVerificacion] (
+    [CodigoId] INT IDENTITY(1,1) PRIMARY KEY,
+    [UsuarioId] INT NOT NULL FOREIGN KEY REFERENCES [dbo].[Usuario]([UsuarioId]),
+    [Codigo] VARCHAR(6) NOT NULL,
+    [Tipo] VARCHAR(30) NOT NULL,
+    [ExpiraEn] DATETIME NOT NULL,
+    [Usado] BIT NOT NULL DEFAULT 0,
+    [FechaCreacion] DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- Una fila por login exitoso: dispositivos conectados / revocar sesiones (D7).
+IF OBJECT_ID(N'dbo.UsuarioSesion', N'U') IS NULL
+CREATE TABLE [dbo].[UsuarioSesion] (
+    [SesionId] INT IDENTITY(1,1) PRIMARY KEY,
+    [UsuarioId] INT NOT NULL FOREIGN KEY REFERENCES [dbo].[Usuario]([UsuarioId]),
+    [DispositivoNombre] VARCHAR(150) NULL,
+    [IpUltimoLogin] VARCHAR(45) NULL,
+    [FechaCreacion] DATETIME NOT NULL DEFAULT GETDATE(),
+    [UltimaActividad] DATETIME NOT NULL DEFAULT GETDATE(),
+    [JwtJti] VARCHAR(100) NOT NULL,
+    [Activa] BIT NOT NULL DEFAULT 1
 );
 GO
 
