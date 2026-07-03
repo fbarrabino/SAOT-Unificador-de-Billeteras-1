@@ -139,3 +139,68 @@ export async function fetchMisMovimientos(): Promise<ActivityItem[]> {
     return [];
   }
 }
+
+// ─── Paginado + filtros (rúbrica 3.4 y 3.5) ─────────────────────────────────────
+
+/** Forma cruda del PagedResult<T> que devuelve el backend (camelCase). */
+interface PagedResultRaw<T> {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+/** Filtros que acepta el endpoint paginado. */
+export interface MovimientosPagedParams {
+  /** 'Ingreso' | 'Egreso' (o undefined para no filtrar por tipo). */
+  tipo?: 'Ingreso' | 'Egreso';
+  /** Texto libre: busca en descripción y nombre de categoría (en la API). */
+  texto?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+/** Página ya mapeada a ActivityItem, con la metadata de paginación. */
+export interface MovimientosPage {
+  items: ActivityItem[];
+  pageNumber: number;
+  totalPages: number;
+  totalCount: number;
+  hasNext: boolean;
+}
+
+/**
+ * GET /api/movimientos/me/paged
+ *
+ * Trae UNA página del historial, con filtro y paginado resueltos EN LA API
+ * (no en el cliente). Se usa desde la tab Actividad para el scroll infinito.
+ *
+ * A diferencia de fetchMisMovimientos, esta función NO traga el error: lo
+ * propaga para que la pantalla pueda mostrar el banner "Reintentar".
+ */
+export async function fetchMovimientosPaginado(
+  params: MovimientosPagedParams = {},
+): Promise<MovimientosPage> {
+  const { tipo, texto, pageNumber = 1, pageSize = 20 } = params;
+
+  // Armamos el query string solo con lo que tenga valor.
+  const qs = new URLSearchParams();
+  if (tipo) qs.append('tipo', tipo);
+  if (texto && texto.trim()) qs.append('texto', texto.trim());
+  qs.append('pageNumber', String(pageNumber));
+  qs.append('pageSize', String(pageSize));
+
+  const page = await api.get<PagedResultRaw<MovimientoResponse>>(
+    `/api/movimientos/me/paged?${qs.toString()}`,
+  );
+
+  return {
+    items: (page.items ?? []).map(movimientoToActivity),
+    pageNumber: page.pageNumber,
+    totalPages: page.totalPages,
+    totalCount: page.totalCount,
+    hasNext: page.hasNext,
+  };
+}

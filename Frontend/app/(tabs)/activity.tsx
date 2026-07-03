@@ -2,14 +2,19 @@
 // Lista unificada (todas las billeteras) de movimientos en una timeline.
 // Header título + ícono lupa, filtros pill (Todos / Ingresos / Salientes),
 // filas agrupadas por bucket temporal (HOY / AYER / fechas).
-// Datos reales desde WalletsContext (GET /api/movimientos/me).
-import React, { useMemo, useState } from 'react';
+//
+// PAGINADO + FILTROS SERVER-SIDE (rúbrica 3.4 y 3.5):
+// El filtro (tipo + texto) y el paginado NO se resuelven en el cliente: se
+// mandan como query params a GET /api/movimientos/me/paged y la API los
+// resuelve en la base (Skip/Take + WHERE). Acá solo acumulamos las páginas
+// y hacemos scroll infinito con SectionList.
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
+  SectionList,
   TextInput,
   ActivityIndicator,
   RefreshControl,
@@ -21,10 +26,13 @@ import { AuroraBackground } from '@/components/AuroraBackground';
 import { WalletGlyph } from '@/components/WalletGlyph';
 import { fmt } from '@/utils/format';
 import { colors, fonts, radii } from '@/theme/tokens';
-import { useWallets } from '@/context/WalletsContext';
+import { fetchMovimientosPaginado } from '@/api/movimientos';
 import type { ActivityItem } from '@/data/activity';
 
 type Filter = 'all' | 'in' | 'out';
+
+// Filas por página. El backend clampa pageSize a 1..100.
+const PAGE_SIZE = 20;
 
 function SearchIcon() {
   return (
@@ -39,43 +47,94 @@ export default function Activity() {
   const [filter, setFilter] = useState<Filter>('all');
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  // Datos reales del backend (o mock si no hay conexión)
-  const { activity, isLoading, error, refresh } = useWallets();
+  // ── Estado del listado paginado (viene de la API) ─────────────────────────
+  const [items, setItems] = useState<ActivityItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);        // carga inicial / cambio de filtro
+  const [loadingMore, setLoadingMore] = useState(false); // scroll infinito (página siguiente)
+  const [refreshing, setRefreshing] = useState(false);   // pull-to-refresh
+  const [error, setError] = useState<string | null>(null);
 
-  // Filtrado y búsqueda local sobre los datos ya cargados.
-  // F1 — además de título/billetera, se puede buscar por monto: el usuario
-  // puede tipear "45", "45.20" o "45,20" y matchea igual.
-  const filtered = useMemo(() => {
-    return activity.filter(a => {
-      if (filter === 'in'  && a.kind !== 'in')  return false;
-      if (filter === 'out' && a.kind !== 'out') return false;
-      if (query) {
-        const q = query.toLowerCase().trim();
-        const matchTitle  = a.title.toLowerCase().includes(q);
-        const matchWallet = a.walletName.toLowerCase().includes(q);
+  // Debounce del texto (400 ms): así no le pegamos a la API en cada tecla.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 400);
+    return () => clearTimeout(t);
+  }, [query]);
 
-        // Monto en sus dos notaciones ("45.20" y "45,20") + el query
-        // normalizado a punto para comparar sin importar la coma.
-        const montoAbs = Math.abs(a.amount).toFixed(2);
-        const montoComa = montoAbs.replace('.', ',');
-        const qNum = q.replace(',', '.');
-        const matchMonto =
-          montoAbs.includes(qNum) || montoComa.includes(q);
+  // Pill de filtro → valor 'tipo' que entiende la API.
+  const tipoParam = filter === 'in' ? 'Ingreso' : filter === 'out' ? 'Egreso' : undefined;
 
-        if (!matchTitle && !matchWallet && !matchMonto) return false;
+  // Carga una página. mode:
+  //   'reset'   → primera carga o cambió el filtro → REEMPLAZA la lista.
+  //   'append'  → scroll infinito → AGREGA al final.
+  //   'refresh' → pull-to-refresh → recarga la página 1.
+  const cargar = useCallback(
+    async (pageToLoad: number, mode: 'reset' | 'append' | 'refresh') => {
+      if (mode === 'reset') setLoading(true);
+      if (mode === 'append') setLoadingMore(true);
+      if (mode === 'refresh') setRefreshing(true);
+      setError(null);
+
+      try {
+        const res = await fetchMovimientosPaginado({
+          tipo: tipoParam,
+          texto: debouncedQuery || undefined,
+          pageNumber: pageToLoad,
+          pageSize: PAGE_SIZE,
+        });
+
+        setItems(prev => {
+          if (mode === 'append') {
+            // Dedupe defensivo por id para no repetir claves entre páginas.
+            const seen = new Set(prev.map(p => p.id));
+            return [...prev, ...res.items.filter(i => !seen.has(i.id))];
+          }
+          return res.items;
+        });
+        setPage(res.pageNumber);
+        setHasNext(res.hasNext);
+        setTotalCount(res.totalCount);
+      } catch (e) {
+        console.warn('[Activity] Error cargando movimientos:', e);
+        setError('No se pudieron cargar los movimientos. Revisá tu conexión.');
+        if (mode === 'reset') setItems([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
       }
-      return true;
-    });
-  }, [activity, filter, query]);
+    },
+    [tipoParam, debouncedQuery],
+  );
 
-  // Re-agrupar por bucket conservando el orden (viene ordenado del backend)
-  const grouped: Array<{ bucket: string; items: ActivityItem[] }> = [];
-  for (const a of filtered) {
-    const last = grouped[grouped.length - 1];
-    if (last && last.bucket === a.bucket) last.items.push(a);
-    else grouped.push({ bucket: a.bucket, items: [a] });
-  }
+  // Cuando cambia el filtro o el texto (debounced), recargamos desde la página 1.
+  useEffect(() => {
+    cargar(1, 'reset');
+  }, [cargar]);
+
+  const onRefresh = useCallback(() => cargar(1, 'refresh'), [cargar]);
+
+  // Scroll infinito: al llegar al final, si hay más y no estamos cargando, pedimos la próxima.
+  const handleEndReached = useCallback(() => {
+    if (!loading && !loadingMore && !refreshing && hasNext) {
+      cargar(page + 1, 'append');
+    }
+  }, [loading, loadingMore, refreshing, hasNext, page, cargar]);
+
+  // Agrupamos los ítems acumulados por bucket temporal para las secciones.
+  const sections = useMemo(() => {
+    const groups: Array<{ title: string; data: ActivityItem[] }> = [];
+    for (const a of items) {
+      const last = groups[groups.length - 1];
+      if (last && last.title === a.bucket) last.data.push(a);
+      else groups.push({ title: a.bucket, data: [a] });
+    }
+    return groups;
+  }, [items]);
 
   return (
     <View style={styles.root}>
@@ -102,9 +161,10 @@ export default function Activity() {
               autoFocus
               value={query}
               onChangeText={setQuery}
-              placeholder="Buscar por nombre, billetera o monto..."
+              placeholder="Buscar por descripción o categoría..."
               placeholderTextColor={colors.dim}
               style={styles.searchInput}
+              returnKeyType="search"
             />
           </View>
         ) : null}
@@ -116,74 +176,95 @@ export default function Activity() {
           <FilterPill label="Salientes"active={filter === 'out'} onPress={() => setFilter('out')} />
         </View>
 
+        {/* ── Contador total (demuestra el paginado real) ───────────────────── */}
+        {!loading && totalCount > 0 ? (
+          <Text style={styles.count}>
+            {totalCount} movimiento{totalCount === 1 ? '' : 's'}
+          </Text>
+        ) : null}
+
         {/* ── Banner de error ───────────────────────────────────────────────── */}
-        {error && !isLoading ? (
+        {error && !loading ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{error}</Text>
-            <Pressable onPress={refresh} style={styles.retryBtn}>
+            <Pressable onPress={() => cargar(1, 'reset')} style={styles.retryBtn}>
               <Text style={styles.retryText}>Reintentar</Text>
             </Pressable>
           </View>
         ) : null}
 
-        {/* ── Lista de movimientos ──────────────────────────────────────────── */}
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            // Pull-to-refresh: llama a refresh() que vuelve a pedir al backend
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={refresh}
-              tintColor={colors.cyan}
-              colors={[colors.cyan]}
-            />
-          }
-        >
-          {isLoading && activity.length === 0 ? (
-            // Primera carga — spinner centrado
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={colors.cyan} />
-              <Text style={styles.loadingText}>Cargando actividad...</Text>
-            </View>
-          ) : grouped.length === 0 ? (
-            <Text style={styles.empty}>Sin movimientos para este filtro.</Text>
-          ) : (
-            grouped.map(g => (
-              <View key={g.bucket}>
-                <Text style={styles.bucket}>{g.bucket}</Text>
-                {g.items.map(a => (
-                  <Pressable
-                    key={a.id}
-                    style={styles.row}
-                    onPress={() =>
-                      router.push({ pathname: '/transaction-detail', params: { id: a.id } })
-                    }
-                  >
-                    <WalletGlyph wallet={a.wallet} size={36} />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.title}>{a.title}</Text>
-                      <Text style={styles.sub}>
-                        {a.walletName} · {a.time}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.amount,
-                        { color: a.kind === 'in' ? colors.green : colors.text },
-                      ]}
-                    >
-                      {a.kind === 'in' ? '+' : '-'}
-                      {fmt(Math.abs(a.amount))}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ))
-          )}
-        </ScrollView>
+        {/* ── Lista paginada (SectionList + scroll infinito) ─────────────────── */}
+        {loading && items.length === 0 ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={colors.cyan} />
+            <Text style={styles.loadingText}>Cargando actividad...</Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.4}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.cyan}
+                colors={[colors.cyan]}
+              />
+            }
+            renderSectionHeader={({ section }) => (
+              <Text style={styles.bucket}>{section.title}</Text>
+            )}
+            renderItem={({ item }) => <ActivityRow a={item} />}
+            ListEmptyComponent={
+              !loading && !error ? (
+                <Text style={styles.empty}>Sin movimientos para este filtro.</Text>
+              ) : null
+            }
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.footerLoad}>
+                  <ActivityIndicator color={colors.cyan} />
+                </View>
+              ) : !hasNext && items.length > 0 ? (
+                <Text style={styles.endText}>· fin del historial ·</Text>
+              ) : null
+            }
+          />
+        )}
       </SafeAreaView>
     </View>
+  );
+}
+
+// ─── Fila de movimiento ───────────────────────────────────────────────────────
+
+function ActivityRow({ a }: { a: ActivityItem }) {
+  return (
+    <Pressable
+      style={styles.row}
+      onPress={() => router.push({ pathname: '/transaction-detail', params: { id: a.id } })}
+    >
+      <WalletGlyph wallet={a.wallet} size={36} />
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={styles.title}>{a.title}</Text>
+        <Text style={styles.sub}>
+          {a.walletName} · {a.time}
+        </Text>
+      </View>
+      <Text
+        style={[styles.amount, { color: a.kind === 'in' ? colors.green : colors.text }]}
+      >
+        {a.kind === 'in' ? '+' : '-'}
+        {fmt(Math.abs(a.amount))}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -267,6 +348,13 @@ const styles = StyleSheet.create({
     borderColor: colors.text,
   },
   pillText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.text },
+  count: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: colors.dim,
+    paddingHorizontal: 18,
+    marginBottom: 2,
+  },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,6 +384,15 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   loadingText: { fontFamily: fonts.body, fontSize: 13, color: colors.dim },
+  footerLoad: { paddingVertical: 18, alignItems: 'center' },
+  endText: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.dim,
+    textAlign: 'center',
+    paddingVertical: 16,
+    letterSpacing: 0.5,
+  },
   bucket: {
     fontFamily: fonts.bodyBold,
     fontSize: 10.5,
@@ -303,6 +400,7 @@ const styles = StyleSheet.create({
     color: colors.dim,
     marginTop: 14,
     marginBottom: 6,
+    backgroundColor: colors.bg,
   },
   row: {
     flexDirection: 'row',
