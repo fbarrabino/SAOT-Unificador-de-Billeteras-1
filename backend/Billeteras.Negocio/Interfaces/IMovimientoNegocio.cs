@@ -9,4 +9,14 @@ public interface IMovimientoNegocio
     Task<MovimientoResponse> CrearAsync(MovimientoRequest req);
     Task<MovimientoResponse?> ActualizarAsync(int id, MovimientoRequest req);
     Task<bool> EliminarAsync(int id);
+
+    /// Listado paginado + filtrado de los movimientos del usuario. Normaliza los
+    /// filtros, aplica límites defensivos (page/size) y devuelve un PagedResult
+    /// listo para el cliente.
+    Task<PagedResult<MovimientoResponse>> ObtenerPaginadoPorUsuarioAsync(
+        int usuarioId,
+        string? tipo,
+        string? texto,
+        int pageNumber,
+        int pageSize);
 }
