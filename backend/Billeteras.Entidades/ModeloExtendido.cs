@@ -206,7 +206,7 @@ namespace Billeteras.Entidades
         public int AdjuntoId { get; set; }
         public int MensajeId { get; set; }
         [Required]
-        [MaxLength(255)]
+        [Column(TypeName = "varchar(max)")]
         public string UrlArchivo { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]

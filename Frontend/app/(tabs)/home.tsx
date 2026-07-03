@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -95,70 +96,106 @@ export default function Home() {
           ) : null}
 
           {/* ── Billeteras conectadas ────────────────────────────────────────── */}
-          <View style={styles.sectionRow}>
+          <Pressable
+            style={styles.sectionRow}
+            onPress={() => router.push('/(tabs)/wallets')}
+          >
             <Text style={styles.h4}>Billeteras Conectadas</Text>
             <Text style={styles.more}>›</Text>
-          </View>
+          </Pressable>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 18, gap: 10 }}
-            style={{ marginHorizontal: -18, paddingHorizontal: 18 }}
-          >
-            {wallets.map(w => (
-              <Pressable
-                key={w.key}
-                onPress={() =>
-                  router.push({ pathname: '/wallet-detail', params: { wallet: w.key } })
-                }
-              >
-                <LinearGradient
-                  colors={w.tint}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.wcard}
+          {wallets.length === 0 && !isLoading ? (
+            <Pressable
+              style={styles.walletsEmpty}
+              onPress={() => router.push('/connect-list')}
+            >
+              <Text style={styles.walletsEmptyTitle}>Todavía no tenés billeteras</Text>
+              <Text style={styles.walletsEmptyHint}>
+                Vinculá tu primera para ver el balance unificado y operar.
+              </Text>
+              <Text style={styles.walletsEmptyCta}>Conectar billetera ›</Text>
+            </Pressable>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 18, gap: 10 }}
+              style={{ marginHorizontal: -18, paddingHorizontal: 18 }}
+            >
+              {wallets.map(w => (
+                <Pressable
+                  key={w.key}
+                  onPress={() =>
+                    router.push({ pathname: '/wallet-detail', params: { wallet: w.key } })
+                  }
                 >
-                  <WalletGlyph wallet={w.key} size={34} />
-                  <Text style={styles.wname}>{w.name}</Text>
-                  <Text style={styles.wbal}>{fmt(w.bal)}</Text>
-                </LinearGradient>
-              </Pressable>
-            ))}
-          </ScrollView>
+                  <LinearGradient
+                    colors={w.tint}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.wcard}
+                  >
+                    <WalletGlyph wallet={w.key} size={34} />
+                    <Text style={styles.wname}>{w.name}</Text>
+                    <Text style={styles.wbal}>{fmt(w.bal)}</Text>
+                  </LinearGradient>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
 
           {/* ── Acciones rápidas ─────────────────────────────────────────────── */}
           <View style={[styles.sectionRow, { marginTop: 24 }]}>
             <Text style={styles.h4}>Acciones Rápidas</Text>
           </View>
 
-          <View style={styles.qa}>
-            <QuickAction
-              icon={<SendIcon />}
-              label="Enviar"
-              onPress={() => router.push('/(send)/recipient')}
-            />
-            <QuickAction
-              icon={<RequestIcon />}
-              label="Pedir"
-              onPress={() => router.push('/(request)/amount')}
-            />
-            <QuickAction
-              icon={<SwapIcon />}
-              label="Cambiar"
-              onPress={() => router.push('/(exchange)/amount')}
-            />
-            <QuickAction
-              icon={<QRIcon />}
-              label="Pagar QR"
-              onPress={() => router.push('/payqr-scanning')}
-            />
-          </View>
+          {/* Si no hay billeteras conectadas, las acciones rápidas redirigen a
+              conectar primero. Evita que el flow de Enviar/Cambiar arranque
+              sin cuentas y falle contra el backend con "cuenta no existe". */}
+          {(() => {
+            const sinBilleteras = wallets.length === 0;
+            const irAConectar = () =>
+              Alert.alert(
+                'Conectá una billetera',
+                'Necesitás vincular al menos una billetera para usar esta acción.',
+                [
+                  { text: 'Ahora no', style: 'cancel' },
+                  { text: 'Conectar', onPress: () => router.push('/connect-list') },
+                ],
+              );
+            return (
+              <View style={[styles.qa, sinBilleteras && { opacity: 0.55 }]}>
+                <QuickAction
+                  icon={<SendIcon />}
+                  label="Enviar"
+                  // Fix Franco: Rutas limpias sin paréntesis
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/recipient'))}
+                />
+                <QuickAction
+                  icon={<RequestIcon />}
+                  label="Pedir"
+                  // Fix Franco: Rutas limpias sin paréntesis
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/amount'))}
+                />
+                <QuickAction
+                  icon={<SwapIcon />}
+                  label="Cambiar"
+                  // Fix Franco: Rutas limpias sin paréntesis
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/amount'))}
+                />
+                <QuickAction
+                  icon={<QRIcon />}
+                  label="Pagar QR"
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/payqr-scanning'))}
+                />
+              </View>
+            );
+          })()}
 
           {/* ── Actividad reciente ───────────────────────────────────────────── */}
           <Pressable
             style={[styles.sectionRow, { marginTop: 26 }]}
-            onPress={() => router.push('/(tabs)/activity')}
+            onPress={() => router.push('/activity')}
           >
             <Text style={styles.h4}>Actividad Reciente</Text>
             <Text style={styles.more}>Ver todo ›</Text>
@@ -289,6 +326,32 @@ const styles = StyleSheet.create({
   },
   wname: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 22 },
   wbal: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.text, marginTop: 2 },
+  walletsEmpty: {
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.cardBorder,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    gap: 4,
+  },
+  walletsEmptyTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.text,
+  },
+  walletsEmptyHint: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.muted,
+    lineHeight: 18,
+  },
+  walletsEmptyCta: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.cyan,
+    marginTop: 6,
+  },
   qa: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   qaItem: { flex: 1, alignItems: 'center', gap: 8 },
   qaCircle: {

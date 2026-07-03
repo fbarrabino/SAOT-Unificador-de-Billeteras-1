@@ -16,7 +16,6 @@ function MailCheck() {
       <Svg width={42} height={42} viewBox="0 0 24 24" fill="none" stroke={colors.cyan} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
         <Path d="M4 6h16v12H4z" />
         <Path d="M4 7l8 6 8-6" />
-        <Path d="M9 14l2 2 4-4" stroke={colors.green} strokeWidth={2.2} />
       </Svg>
     </View>
   );

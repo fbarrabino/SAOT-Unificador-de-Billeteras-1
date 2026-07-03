@@ -18,6 +18,7 @@ import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
 import { pagarQr, CATEGORIA_EGRESO_DEFAULT } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
+import { confirmarConBiometria } from '@/utils/biometrics';
 import type { WalletKey } from '@/data/wallets';
 
 export default function PayQRDetectedScreen() {
@@ -51,6 +52,14 @@ export default function PayQRDetectedScreen() {
             Alert.alert('No se puede pagar', 'No se encontró la cuenta vinculada en el servidor.');
             return;
         }
+
+        // D5 — confirmación biométrica antes de pagar.
+        const bio = await confirmarConBiometria(`Pagar ${fmt(monto)} a ${merchant}`);
+        if (!bio.ok) {
+            Alert.alert('Verificación cancelada', bio.motivo ?? 'No se confirmó el pago.');
+            return;
+        }
+
         setSubmitting(true);
         try {
             await pagarQr({

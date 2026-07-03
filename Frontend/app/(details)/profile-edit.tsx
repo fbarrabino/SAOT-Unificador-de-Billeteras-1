@@ -6,13 +6,30 @@ import { router } from 'expo-router';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { colors, radii, spacing, type, gradients, shadow } from '@/theme/tokens';
+import { useSession } from '@/context/SessionContext';
 
 export default function ProfileEditScreen() {
-    const [name, setName] = useState('Fabricio Thompson');
-    const [user, setUser] = useState('@fabriciot');
-    const [email, setEmail] = useState('fabricio.saot.app@saot.app');
-    const [phone, setPhone] = useState('+54 9 11 4567 8910');
+    // D2 — los datos arrancan del usuario logueado, no de valores hardcodeados.
+    // El guardado real (PUT), país y foto de perfil los implementa Franco.
+    const { usuario } = useSession();
+
+    const nombreCompleto = usuario
+        ? `${usuario.nombre} ${usuario.apellido}`.trim()
+        : '';
+    const usuarioHandle = usuario
+        ? '@' + usuario.email.split('@')[0]
+        : '';
+
+    const [name, setName] = useState(nombreCompleto);
+    const [user, setUser] = useState(usuarioHandle);
+    const [email, setEmail] = useState(usuario?.email ?? '');
+    const [phone, setPhone] = useState('');
     const [country, setCountry] = useState('Argentina');
+
+    const iniciales = (usuario
+        ? `${usuario.nombre?.[0] ?? ''}${usuario.apellido?.[0] ?? ''}`
+        : 'SA'
+    ).toUpperCase();
 
     return (
         <View style={styles.container}>
@@ -30,7 +47,7 @@ export default function ProfileEditScreen() {
                             colors={gradients.lime}
                             style={StyleSheet.absoluteFillObject}
                         />
-                        <Text style={styles.avatarText}>FA</Text>
+                        <Text style={styles.avatarText}>{iniciales}</Text>
 
                         <Pressable style={styles.editIconBadge}>
                             <Feather name="image" size={14} color="#FFFFFF" />

@@ -97,14 +97,22 @@ GO
 
 -- 3) Seeds de catálogo ----------------------------------------------------------
 
--- Billeteras del mercado argentino
-IF NOT EXISTS (SELECT 1 FROM dbo.Billetera)
-INSERT INTO dbo.Billetera (Nombre) VALUES
+-- Billeteras del mercado argentino (Actualizado B4-Seed)
+INSERT INTO dbo.Billetera (Nombre)
+SELECT Nombre FROM (VALUES 
     (N'Mercado Pago'),
     (N'Ualá'),
     (N'Brubank'),
     (N'Naranja X'),
-    (N'Personal Pay');
+    (N'Personal Pay'),
+    (N'Reba'),
+    (N'Belo'),
+    (N'Cuenta DNI'),
+    (N'MODO')
+) AS v(Nombre)
+WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.Billetera b WHERE b.Nombre = v.Nombre
+);
 GO
 
 -- Categorías de movimientos
@@ -242,7 +250,7 @@ IF OBJECT_ID(N'dbo.TicketAdjunto', N'U') IS NULL
 CREATE TABLE [dbo].[TicketAdjunto] (
     [AdjuntoId] INT IDENTITY(1,1) PRIMARY KEY,
     [MensajeId] INT NOT NULL FOREIGN KEY REFERENCES [dbo].[TicketMensaje]([MensajeId]),
-    [UrlArchivo] VARCHAR(255) NOT NULL,
+    [UrlArchivo] VARCHAR(MAX) NOT NULL,
     [TipoMime] VARCHAR(50) NOT NULL
 );
 GO

@@ -25,6 +25,8 @@ export const gradients = {
   mpTint: ['rgba(57,195,242,0.16)', 'rgba(255,255,255,0.02)'] as const,
   uaTint: ['rgba(155,107,255,0.16)', 'rgba(255,255,255,0.02)'] as const,
   lmTint: ['rgba(182,240,75,0.16)', 'rgba(255,255,255,0.02)'] as const,
+  bbTint: ['rgba(104,66,255,0.18)', 'rgba(255,255,255,0.02)'] as const, // Brubank
+  nxTint: ['rgba(255,92,0,0.18)',   'rgba(255,255,255,0.02)'] as const, // Naranja X
 };
 
 export const radii = {

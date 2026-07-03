@@ -7,13 +7,9 @@
  *
  * El backend devuelve: { movimientoId, cuentaBilleteraId, monto, tipo ('INGRESO'/'EGRESO'),
  *                        fecha, descripcion, categoriaNombre, cuentaAlias }
- *
- * Estrategia de fallback:
- *   Si el backend no responde, devuelve MOCK_ACTIVITY.
  */
 
 import { api } from './client';
-import { MOCK_ACTIVITY } from '@/data/activity';
 import type { ActivityItem } from '@/data/activity';
 import type { WalletKey } from '@/data/wallets';
 
@@ -69,6 +65,8 @@ function toWalletKey(alias: string | null): WalletKey {
   if (a.includes('mp') || a.includes('mercado')) return 'mp';
   if (a.includes('ua') || a.includes('uala') || a.includes('ualá')) return 'ua';
   if (a.includes('lm') || a.includes('lemon')) return 'lm';
+  if (a.includes('bb') || a.includes('brubank')) return 'bb';
+  if (a.includes('nx') || a.includes('naranja')) return 'nx';
   return 'mp'; // default razonable mientras el alias no esté estandarizado
 }
 
@@ -77,6 +75,8 @@ function toWalletName(key: WalletKey): string {
     mp: 'Mercado Pago',
     ua: 'Ualá',
     lm: 'Lemon',
+    bb: 'Brubank',
+    nx: 'Naranja X',
   };
   return names[key];
 }
@@ -121,25 +121,21 @@ export function movimientoToActivity(m: MovimientoResponse): ActivityItem {
  * Devuelve el historial del usuario como ActivityItem[].
  * Los movimientos ya vienen ordenados por fecha DESC desde el backend.
  *
- * Fallback: si el servidor no responde, usa MOCK_ACTIVITY.
+ * Bloque 1 (B1): si el server no responde o el usuario no tiene
+ * movimientos, devolvemos array vacío para que la UI muestre el empty state.
  */
 export async function fetchMisMovimientos(): Promise<ActivityItem[]> {
   try {
     const movimientos = await api.get<MovimientoResponse[]>('/api/movimientos/me');
 
     if (!Array.isArray(movimientos)) {
-      console.warn('[movimientos] La respuesta del servidor no es un array. Usando mock.');
-      return MOCK_ACTIVITY;
-    }
-
-    if (movimientos.length === 0) {
-      // El usuario no tiene movimientos — devolvemos lista vacía (no el mock)
+      console.warn('[movimientos] La respuesta del servidor no es un array.');
       return [];
     }
 
     return movimientos.map(movimientoToActivity);
   } catch (err) {
-    console.warn('[movimientos] No se pudo conectar al backend. Usando mock de desarrollo:', err);
-    return MOCK_ACTIVITY;
+    console.warn('[movimientos] No se pudo conectar al backend:', err);
+    return [];
   }
 }

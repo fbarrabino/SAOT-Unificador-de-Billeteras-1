@@ -43,16 +43,27 @@ export default function Activity() {
   // Datos reales del backend (o mock si no hay conexión)
   const { activity, isLoading, error, refresh } = useWallets();
 
-  // Filtrado y búsqueda local sobre los datos ya cargados
+  // Filtrado y búsqueda local sobre los datos ya cargados.
+  // F1 — además de título/billetera, se puede buscar por monto: el usuario
+  // puede tipear "45", "45.20" o "45,20" y matchea igual.
   const filtered = useMemo(() => {
     return activity.filter(a => {
       if (filter === 'in'  && a.kind !== 'in')  return false;
       if (filter === 'out' && a.kind !== 'out') return false;
       if (query) {
-        const q = query.toLowerCase();
+        const q = query.toLowerCase().trim();
         const matchTitle  = a.title.toLowerCase().includes(q);
         const matchWallet = a.walletName.toLowerCase().includes(q);
-        if (!matchTitle && !matchWallet) return false;
+
+        // Monto en sus dos notaciones ("45.20" y "45,20") + el query
+        // normalizado a punto para comparar sin importar la coma.
+        const montoAbs = Math.abs(a.amount).toFixed(2);
+        const montoComa = montoAbs.replace('.', ',');
+        const qNum = q.replace(',', '.');
+        const matchMonto =
+          montoAbs.includes(qNum) || montoComa.includes(q);
+
+        if (!matchTitle && !matchWallet && !matchMonto) return false;
       }
       return true;
     });
@@ -91,7 +102,7 @@ export default function Activity() {
               autoFocus
               value={query}
               onChangeText={setQuery}
-              placeholder="Buscar movimiento, billetera..."
+              placeholder="Buscar por nombre, billetera o monto..."
               placeholderTextColor={colors.dim}
               style={styles.searchInput}
             />

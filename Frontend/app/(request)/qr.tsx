@@ -1,57 +1,88 @@
-// Pedir #2 — QR de cobro.
-// Genera una grilla pseudo-aleatoria 13×13 (igual al qrCells() del prototipo) sobre
-// un tile blanco redondeado. Abajo: link saot.app/r/<usuario>-<id> + acciones
-// "Copiar link" y "Compartir".
-import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+// Pedir #2 — QR de cobro real.
+// C2: QR codifica un JSON con { tipo, usuarioId, alias, monto, ref } usando
+// react-native-qrcode-svg, en lugar de la grilla decorativa anterior.
+// C3: "Copiar link" usa expo-clipboard y "Compartir" usa el Share nativo.
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
 import Svg, { Path } from 'react-native-svg';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { AmountDisplay } from '@/components/AmountDisplay';
 import { TxHeader } from '@/components/TxHeader';
 import { WalletGlyph } from '@/components/WalletGlyph';
-import { findWallet, type WalletKey } from '@/data/wallets';
+import { useWallets } from '@/context/WalletsContext';
+import { useSession } from '@/context/SessionContext';
+import { type WalletKey } from '@/data/wallets';
 import { fmt } from '@/utils/format';
 import { colors, fonts, radii } from '@/theme/tokens';
 
-const QR_GRID = 13;
-
-function buildCells() {
-  // Patrón determinístico para que no parpadee en re-renders.
-  // Mantiene "marquitos" en las 3 esquinas (eyes) como un QR real.
-  const cells = new Array(QR_GRID * QR_GRID).fill(false);
-  for (let r = 0; r < QR_GRID; r++) {
-    for (let c = 0; c < QR_GRID; c++) {
-      const i = r * QR_GRID + c;
-      // pseudo-random reproducible
-      cells[i] = ((r * 31 + c * 17 + r * c) % 7) % 2 === 0;
-    }
-  }
-  // Eyes (3 esquinas 3x3)
-  const eyes: Array<[number, number]> = [
-    [0, 0],
-    [0, QR_GRID - 3],
-    [QR_GRID - 3, 0],
-  ];
-  for (const [er, ec] of eyes) {
-    for (let dr = 0; dr < 3; dr++) {
-      for (let dc = 0; dc < 3; dc++) {
-        const i = (er + dr) * QR_GRID + (ec + dc);
-        const onBorder = dr === 0 || dr === 2 || dc === 0 || dc === 2;
-        const middle = dr === 1 && dc === 1;
-        cells[i] = onBorder || middle;
-      }
-    }
-  }
-  return cells;
-}
+const QR_TILE = 220;
+const QR_INNER = QR_TILE - 28;
 
 export default function RequestQR() {
   const { into, amt } = useLocalSearchParams<{ into?: WalletKey; amt?: string }>();
-  const wallet = findWallet((into as WalletKey) ?? 'mp');
+  const { wallets } = useWallets();
+  const { usuario } = useSession();
+
+  // Si el usuario eligió una wallet en (request)/amount.tsx la usamos; si no,
+  // tomamos la primera que tenga. Sin billeteras, no debería llegar acá (el
+  // home las bloquea), pero por las dudas hacemos fallback al primer wallet.
+  const wallet =
+    wallets.find((w) => w.key === ((into as WalletKey) ?? 'mp')) ?? wallets[0];
+
   const n = Number(amt ?? 0);
-  const cells = useMemo(buildCells, []);
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ref único por sesión de pantalla — sirve de identificador del cobro.
+  // Formato corto: "<initials>-<4 dígitos>" para que el link sea legible.
+  const { payload, link, alias } = useMemo(() => {
+    const initials = (usuario?.nombre ?? 'saot')
+      .toLowerCase()
+      .replace(/\s+/g, '');
+    const ref = Math.floor(1000 + Math.random() * 9000);
+    const aliasCorto = `${initials}-${ref}`;
+    const linkCorto = `saot.app/r/${aliasCorto}`;
+    const data = {
+      tipo: 'pago_saot',
+      usuarioId: usuario?.usuarioId ?? null,
+      alias: aliasCorto,
+      walletKey: wallet?.key ?? null,
+      cuentaId: wallet?.cuentaId ?? null,
+      monto: n,
+      ref: String(ref),
+    };
+    return { payload: JSON.stringify(data), link: linkCorto, alias: aliasCorto };
+  }, [usuario, wallet, n]);
+
+  async function handleCopiar() {
+    await Clipboard.setStringAsync(link);
+    setCopied(true);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 1800);
+  }
+
+  async function handleCompartir() {
+    try {
+      await Share.share({
+        title: `Pedido de pago de ${usuario?.nombre ?? 'SaOT'}`,
+        message: `${usuario?.nombre ?? 'Te'} te está pidiendo ${fmt(n)}.\nPagar: https://${link}`,
+        url: `https://${link}`, // iOS usa "url" además del message
+      });
+    } catch (err) {
+      Alert.alert('No se pudo compartir', 'Intentá de nuevo en un momento.');
+    }
+  }
 
   return (
     <View style={styles.root}>
@@ -64,28 +95,28 @@ export default function RequestQR() {
           <AmountDisplay text={fmt(n)} variant="cyan" size={32} />
 
           <View style={styles.qrTile}>
-            <View style={styles.qrGrid}>
-              {cells.map((on, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.qrCell,
-                    { backgroundColor: on ? '#06121A' : 'transparent' },
-                  ]}
-                />
-              ))}
+            <QRCode
+              value={payload}
+              size={QR_INNER}
+              backgroundColor="#FFFFFF"
+              color="#06121A"
+              ecl="M"
+            />
+            {wallet ? (
               <View style={styles.qrCenter}>
                 <WalletGlyph wallet={wallet.key} size={28} />
               </View>
-            </View>
+            ) : null}
           </View>
 
-          <Text style={styles.helper}>Escaneá con SaOT o cualquier billetera asociada para pagar</Text>
-          <Text style={styles.link}>saot.app/r/fabricio-2261</Text>
+          <Text style={styles.helper}>
+            Escaneá con SaOT o cualquier billetera asociada para pagar
+          </Text>
+          <Text style={styles.link}>{link}</Text>
         </View>
 
         <View style={styles.footer}>
-          <Pressable style={styles.action}>
+          <Pressable style={styles.action} onPress={handleCopiar}>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M8 4h10a2 2 0 012 2v12M4 8v12a2 2 0 002 2h12"
@@ -95,9 +126,11 @@ export default function RequestQR() {
                 strokeLinejoin="round"
               />
             </Svg>
-            <Text style={styles.actionText}>Copiar link</Text>
+            <Text style={styles.actionText}>
+              {copied ? '¡Copiado!' : 'Copiar link'}
+            </Text>
           </Pressable>
-          <Pressable style={styles.action}>
+          <Pressable style={styles.action} onPress={handleCompartir}>
             <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M12 16V4M7 9l5-5 5 5M5 20h14"
@@ -115,8 +148,6 @@ export default function RequestQR() {
   );
 }
 
-const QR_TILE = 220;
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   body: { flex: 1, alignItems: 'center', paddingHorizontal: 18, paddingTop: 4 },
@@ -130,16 +161,6 @@ const styles = StyleSheet.create({
     marginTop: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  qrGrid: {
-    width: QR_TILE - 28,
-    height: QR_TILE - 28,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  qrCell: {
-    width: `${100 / QR_GRID}%`,
-    height: `${100 / QR_GRID}%`,
   },
   qrCenter: {
     position: 'absolute',

@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, Link } from 'expo-router';
+import { router, Link, useLocalSearchParams } from 'expo-router';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { AppIcon } from '@/components/AppIcon';
 import { Input } from '@/components/Input';
@@ -18,14 +18,18 @@ import { colors, fonts, type } from '@/theme/tokens';
 import { useSession } from '@/context/SessionContext';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  // A5 — venimos del signup con el email precargado y un flag de "recién creada".
+  const params = useLocalSearchParams<{ email?: string; justRegistered?: string }>();
+  const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
+  const [showRegistered, setShowRegistered] = useState(params.justRegistered === '1');
 
   const { login, isLoading, error, clearError } = useSession();
 
   // Limpiamos el error cuando el usuario empieza a editar los campos
   const handleEmailChange = (v: string) => {
     setEmail(v);
+    setShowRegistered(false);
     if (error) clearError();
   };
 
@@ -66,6 +70,14 @@ export default function Login() {
           </Text>
 
           <View style={styles.form}>
+            {showRegistered ? (
+              <View style={styles.okBanner}>
+                <Text style={styles.okText}>
+                  ¡Cuenta creada! Ingresá con tu email y contraseña.
+                </Text>
+              </View>
+            ) : null}
+
             <Input
               label="Email"
               value={email}
@@ -162,6 +174,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   form: { marginTop: 6 },
+  okBanner: {
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.35)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  okText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.green,
+    lineHeight: 18,
+  },
   errorBanner: {
     backgroundColor: 'rgba(239,68,68,0.12)',
     borderWidth: 1,

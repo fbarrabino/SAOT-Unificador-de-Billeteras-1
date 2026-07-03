@@ -4,18 +4,11 @@
  * Endpoint: GET /api/cuentas-billetera/me
  * Devuelve las cuentas vinculadas del usuario autenticado y las convierte
  * al tipo Wallet que usan las pantallas del frontend.
- *
- * Estrategia de fallback:
- *   Si el backend no responde (red caída, backend en construcción),
- *   devuelve MOCK_WALLETS para que el desarrollo no se detenga.
  */
 
 import { api } from './client';
 import { gradients } from '@/theme/tokens';
-import { MOCK_WALLETS } from '@/data/wallets';
 import type { Wallet, WalletKey } from '@/data/wallets';
-
-// ─── Tipo del backend ─────────────────────────────────────────────────────────
 
 export interface CuentaBilleteraResponse {
   cuentaBilleteraId: number;
@@ -30,29 +23,28 @@ export interface CuentaBilleteraResponse {
 
 // ─── Helpers de mapeo ─────────────────────────────────────────────────────────
 
-/** Convierte el nombre del backend ('Mercado Pago', 'Ualá', 'Lemon') al key interno. */
+/** Convierte el nombre del backend al key interno de la app. */
 function toWalletKey(nombre: string | null): WalletKey | null {
   const n = (nombre ?? '').toLowerCase().trim();
   if (n.includes('mercado') || n.includes('mp')) return 'mp';
-  if (n.includes('ual')) return 'ua';   // 'Ualá', 'Uala'
+  if (n.includes('ual')) return 'ua';
   if (n.includes('lemon') || n.includes('lm')) return 'lm';
+  if (n.includes('brubank') || n.includes('bb')) return 'bb';
+  if (n.includes('naranja') || n.includes('nx')) return 'nx';
   return null; // billetera desconocida — la ignoramos
 }
 
-/** Devuelve el gradiente correspondiente al key de billetera. */
 function toGradient(key: WalletKey): readonly [string, string] {
-  const map: Record<WalletKey, readonly [string, string]> = {
+  const map: Record<string, readonly [string, string]> = {
     mp: gradients.mpTint,
     ua: gradients.uaTint,
     lm: gradients.lmTint,
+    bb: gradients.bbTint,
+    nx: gradients.nxTint,
   };
-  return map[key];
+  return map[key] || gradients.mpTint;
 }
 
-/**
- * Transforma una CuentaBilleteraResponse del backend al tipo Wallet del frontend.
- * Devuelve null si la billetera no es reconocida (key desconocida).
- */
 export function cuentaToWallet(cuenta: CuentaBilleteraResponse): Wallet | null {
   const key = toWalletKey(cuenta.billeteraNombre);
   if (key === null) return null;
@@ -73,32 +65,31 @@ export function cuentaToWallet(cuenta: CuentaBilleteraResponse): Wallet | null {
  * GET /api/cuentas-billetera/me
  *
  * Devuelve las billeteras del usuario autenticado transformadas a Wallet[].
- *
- * Fallback: si el servidor no responde o devuelve un array vacío,
- * usa MOCK_WALLETS para que el desarrollo pueda continuar.
  */
 export async function fetchMisCuentas(): Promise<Wallet[]> {
   try {
     const cuentas = await api.get<CuentaBilleteraResponse[]>('/api/cuentas-billetera/me');
 
     if (!Array.isArray(cuentas)) {
-      console.warn('[cuentas] La respuesta del servidor no es un array. Usando mock.');
-      return MOCK_WALLETS;
+      console.warn('[cuentas] La respuesta del servidor no es un array.');
+      return [];
     }
 
-    const wallets = cuentas
+    return cuentas
       .map(cuentaToWallet)
       .filter((w): w is Wallet => w !== null);
-
-    if (wallets.length === 0) {
-      console.warn('[cuentas] El servidor respondió pero sin billeteras reconocidas. Usando mock.');
-      return MOCK_WALLETS;
-    }
-
-    return wallets;
   } catch (err) {
-    // Error de red o del servidor — fallback silencioso en modo desarrollo
-    console.warn('[cuentas] No se pudo conectar al backend. Usando mock de desarrollo:', err);
-    return MOCK_WALLETS;
+    console.warn('[cuentas] No se pudo conectar al backend:', err);
+    return [];
   }
+}
+
+// Nueva función para B4-FE (Tu trabajo)
+export async function vincularCuentaBilletera(billeteraId: number, alias: string, saldoInicial: number): Promise<CuentaBilleteraResponse> {
+  const req = {
+    billeteraId,
+    alias,
+    saldoInicial
+  };
+  return await api.post<CuentaBilleteraResponse>('/api/cuentas-billetera', req);
 }

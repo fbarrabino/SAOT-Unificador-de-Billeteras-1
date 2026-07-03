@@ -54,9 +54,13 @@ public class CuentasBilleteraController(ICuentaBilleteraNegocio negocio) : Contr
     }
 
     [HttpPost]
-    public async Task<ActionResult<CuentaBilleteraResponse>> Crear([FromBody] CuentaBilleteraRequest req)
+    public async Task<ActionResult<CuentaBilleteraResponse>> Crear([FromBody] CrearCuentaBilleteraRequest req)
     {
-        var creada = await negocio.CrearAsync(req);
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idClaim, out var usuarioId))
+            return Unauthorized(new { mensaje = "Token inválido: no se pudo obtener el ID de usuario." });
+
+        var creada = await negocio.CrearAsync(usuarioId, req);
         return CreatedAtAction(nameof(ObtenerPorId), new { id = creada.CuentaBilleteraId }, creada);
     }
 

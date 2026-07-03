@@ -21,6 +21,7 @@ import {
   CATEGORIA_INGRESO_DEFAULT,
 } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
+import { confirmarConBiometria } from '@/utils/biometrics';
 
 export default function ExchangeConfirm() {
   const { from, to, amt, fee } = useLocalSearchParams<{
@@ -46,6 +47,16 @@ export default function ExchangeConfirm() {
       Alert.alert('No se puede cambiar', 'Faltan cuentas vinculadas en el backend.');
       return;
     }
+
+    // D5 — confirmación biométrica antes de mover dinero.
+    const bio = await confirmarConBiometria(
+      `Cambiar ${fmt(n)} de ${fromWallet.name} a ${toWallet.name}`,
+    );
+    if (!bio.ok) {
+      Alert.alert('Verificación cancelada', bio.motivo ?? 'No se confirmó el cambio.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await cambiar({

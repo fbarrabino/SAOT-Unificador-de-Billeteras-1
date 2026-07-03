@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, TextInput, StyleSheet, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { View, TextInput, StyleSheet, Keyboard, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 import { colors, fonts, radii } from '@/theme/tokens';
 
 type Props = {
@@ -17,7 +17,13 @@ export function CodeInput({ length = 6, onChange }: Props) {
     next[index] = ch;
     setValues(next);
     onChange?.(next.join(''));
-    if (ch && index < length - 1) refs.current[index + 1]?.focus();
+    if (ch && index < length - 1) {
+      refs.current[index + 1]?.focus();
+    } else if (ch && index === length - 1) {
+      // Último dígito: el teclado numérico no tiene botón "Listo",
+      // así que lo cerramos solos para dejar libre el CTA.
+      Keyboard.dismiss();
+    }
   }
 
   function handleKey(index: number, e: NativeSyntheticEvent<TextInputKeyPressEventData>) {

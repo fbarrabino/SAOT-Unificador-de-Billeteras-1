@@ -12,46 +12,39 @@ hay que abrir cinco apps distintas y sumar a mano.
 
 El **Unificador de Billeteras Virtuales** (SaOT) resuelve ese problema. Es un sistema que le
 permite a un usuario **consolidar en una única vista** las cuentas y los movimientos que tiene
-en distintas billeteras virtuales. El usuario vincula sus cuentas (de Mercado Pago, Ualá,
-Brubank, Naranja X, Personal Pay, etc.), registra sus movimientos clasificados por categoría,
-opera entre ellas (enviar, cambiar, pagar QR) y obtiene un panorama unificado de sus saldos y
-de su actividad financiera.
+en distintas billeteras virtuales. El usuario vincula sus cuentas (Mercado Pago, Ualá, Brubank,
+Naranja X, Personal Pay, etc.), registra y opera sus movimientos clasificados por categoría
+(enviar, cambiar, pagar QR, pedir cobros) y obtiene un panorama unificado de sus saldos y de su
+actividad financiera.
 
 ## Estado actual del proyecto
 
-  API REST construida con **.NET 10 (ASP.NET Core Web API)**. Incluye autenticación **JWT**
-  con `Microsoft.AspNetCore.Authentication.JwtBearer` (validando issuer, audience, lifetime y
-  firma), **CORS** abierto (política `AllowAll`), y toda la configuración (connection strings
+  **API REST en .NET 10 (ASP.NET Core)** con autenticación **JWT**, roles (`User` / `Admin`),
+  hash de contraseñas **BCrypt**, **CORS** abierto y toda la configuración (connection strings
   SQL Server / Neo4j + parámetros JWT) leída desde `appsettings.json` vía `IConfiguration`.
-  Expone endpoints de **registro, login y perfil** con hash **BCrypt**, además de **roles**
-  (`User` / `Admin`) embebidos en el token y consultados desde la tabla `UsuarioRol`.
 
-  El **modelo de datos relacional** abarca **20+ tablas** (las 5 entidades base más la
-  extensión de seguridad, contactos, comercios, solicitudes de cobro, soporte técnico,
-  notificaciones y métodos de pago externos). Persistencia en **SQL Server**, con **dos
-  enfoques de acceso a datos en paralelo**: **ADO.NET puro** (`Microsoft.Data.SqlClient`) y
-  **Entity Framework Core**. Ambos implementan las mismas interfaces de repositorio y se
-  intercambian por inyección de dependencias.
+  **Modelo de datos relacional de 20 tablas** en **SQL Server**: las 5 del dominio base más la
+  extensión de seguridad/roles, red de contactos, comercios y sucursales, solicitudes de cobro,
+  soporte técnico, notificaciones, métodos de pago externos y auditoría. Incluye **10+ relaciones
+  1‑N**, **3 relaciones N‑N** (UsuarioRol, Contacto, ComercioBilletera), un **campo JSON** con
+  CHECK constraint (`Movimiento.MetadataExtranjera`) y **triggers de auditoría** que registran
+  INSERT/UPDATE/DELETE sobre `Movimiento` y `CuentaBilletera`. Dos enfoques de acceso a datos en
+  paralelo: **ADO.NET puro** y **Entity Framework Core**, intercambiables por DI.
 
-  Las **operaciones del flujo principal del usuario** (Enviar, Cambiar entre wallets, Pagar
-  QR) se ejecutan bajo control **transaccional** (`IDbContextTransaction` con
-  `BeginTransaction` / `Commit` / `Rollback`): cada operación valida saldo y tipo de
-  categoría, inserta los movimientos correspondientes y actualiza el saldo de las cuentas
-  involucradas dentro de la misma transacción. El sistema también soporta **anulación de
-  movimientos con reversión automática de saldo**, manteniendo el registro original
-  intacto como traza para auditoría.
+  **Operaciones transaccionales** (Enviar, Cambiar entre wallets, Pagar QR, Vincular billetera,
+  Anular movimiento, Pagar solicitud) bajo `IDbContextTransaction` con `Commit` / `Rollback`:
+  validan saldo y categoría, insertan movimiento(s) y actualizan saldo dentro de la misma
+  transacción.
 
-  La **base de grafos Neo4j** complementa el modelo relacional para responder consultas que
-  en SQL serían costosas (red de transferencias entre usuarios, comercios más frecuentes,
-  billeteras en común). Tras cada operación SQL exitosa, un hook de Negocio espeja el evento
-  en el grafo (`TRANSFIRIO`, `PAGO_EN`, `ACEPTA`). Los fallos del grafo no rompen la
-  operación financiera: SQL es la fuente de verdad.
+  **Base de grafos Neo4j** que complementa el modelo relacional para consultas de red (quién
+  transfiere a quién, comercios frecuentes, billeteras en común). Tras cada operación SQL exitosa
+  un hook de Negocio espeja el evento en el grafo; si Neo4j falla, la operación financiera no se
+  rompe (SQL es la fuente de verdad).
 
-  El **frontend móvil** es una app **Expo + React Native + TypeScript** con navegación basada
-  en **Expo Router**. Implementa los flujos de autenticación, vinculación de billeteras
-  (con estado de sincronización), home con balance consolidado, detalle de billetera
-  parametrizado por proveedor (Mercado Pago, Ualá, Lemon), y los tres flujos transaccionales
-  (Enviar, Pedir, Cambiar, Pagar QR) cableados contra los endpoints del backend.
+  **App móvil Expo + React Native + TypeScript** con navegación **Expo Router**: onboarding con
+  registro/login/recuperación, dashboard con balance consolidado, vínculo de billeteras, detalle
+  por proveedor, flujos de Enviar / Pedir (QR real) / Cambiar / Pagar QR (cámara real),
+  confirmación con **biometría** (Face ID / huella), perfil, soporte y reportes.
 
 ## Equipo
 
@@ -66,26 +59,24 @@ Equipo — alumnos de la TUP, UTN FRRe.
 |------------------|-----------------------------------------------------------|
 | Backend          | .NET 10 (ASP.NET Core Web API)                            |
 | Lenguaje BE      | C# 14 (incluido en .NET 10)                               |
-| Base relacional  | SQL Server (Express 2025 en dev, instancia `SQLEXPRESS`)  |
+| Base relacional  | SQL Server (Express 2022/2025, instancia `SQLEXPRESS`)    |
 | Acceso a datos   | ADO.NET (`Microsoft.Data.SqlClient`) + EF Core 10         |
-| Base de grafos   | Neo4j 2026 (Neo4j Desktop en dev)                         |
+| Base de grafos   | Neo4j (Neo4j Desktop, `bolt://localhost:7687`)           |
 | Driver grafo     | `Neo4j.Driver` (singleton, `IAsyncDisposable`)            |
 | Auth             | JWT (`Microsoft.AspNetCore.Authentication.JwtBearer`)     |
 | Hash de pwd      | BCrypt.Net-Next                                           |
-| Frontend         | Expo SDK 54 + React Native 0.81 + TypeScript              |
+| Frontend         | Expo SDK 54 · React Native 0.81 · TypeScript             |
 | Navegación FE    | Expo Router (file-based)                                  |
-| Lockfile FE      | pnpm                                                       |
+| Gestor paquetes  | pnpm (frontend) · NuGet (backend)                        |
 
 ## Arquitectura
 
-Arquitectura en capas multi-proyecto:
-
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                   Frontend (Expo)                         │  ← App móvil iOS/Android/Web
-│            (Expo Router · WalletsContext · API client)    │
+│                   Frontend (Expo / RN)                    │  ← App móvil iOS/Android/Web
+│        (Expo Router · WalletsContext · API client)        │
 └───────────────────────────┬───────────────────────────────┘
-                            │ HTTP / JSON
+                            │ HTTP / JSON (REST)
 ┌───────────────────────────▼───────────────────────────────┐
 │               Billeteras.Apps.WebApiApp                   │  ← Capa de Presentación
 │         (Controllers · JWT · DI · Neo4j bootstrap)        │
@@ -102,60 +93,51 @@ Arquitectura en capas multi-proyecto:
 │   Billeteras.Datos     │  │     Billeteras.DatosEF      │  ← Capa de Datos
 │   (ADO.NET puro)       │  │  (EF Core + transacciones)  │     (dos implementaciones)
 └─────────────┬──────────┘  └─────────────┬──────────────┘
-              │                           │
               └─────────────┬─────────────┘
-                            │
                   ┌─────────▼──────────┐
-                  │    Billeteras.     │  ← Capa de Entidades
-                  │    Entidades       │     (POCOs compartidos)
-                  └────────────────────┘
+                  │ Billeteras.Entidades│  ← POCOs compartidos
+                  └─────────────────────┘
 
-                  ┌─────────────────────────┐
-                  │      SQL Server         │  ← Fuente de verdad financiera
-                  └─────────────────────────┘
-                  ┌─────────────────────────┐
-                  │       Neo4j             │  ← Espejo de relaciones
-                  └─────────────────────────┘
+        ┌─────────────────────┐     ┌─────────────────────┐
+        │     SQL Server      │     │       Neo4j         │
+        │  (fuente de verdad) │     │  (espejo de red)    │
+        └─────────────────────┘     └─────────────────────┘
 ```
 
-Las **interfaces de repositorio** (`IUsuarioRepository`, `IOperacionesRepository`, etc.)
-viven en `Billeteras.Datos/Interfaces`. Tanto la implementación **ADO** como la **EF Core**
-las implementan, y se intercambian desde `Program.cs` vía inyección de dependencias. **Por
-defecto se usa EF Core**.
+Las **interfaces de repositorio** viven en `Billeteras.Datos/Interfaces`; las implementan tanto
+la versión **ADO** como la **EF Core**, intercambiables desde `Program.cs` vía DI (por defecto
+EF Core).
 
-## Modelo de datos relacional
+## Modelo de datos
 
-Las 5 entidades base más la extensión de 14 tablas adicionales que cubren seguridad,
-contactos, comercios, solicitudes de cobro, soporte técnico, notificaciones y métodos de
-pago externos. Mínimo requerido por la consigna: 20 tablas + 10 relaciones 1–N + 3
-relaciones N–N. Cumplido.
+El modelo completo (20 tablas, relaciones, claves) está documentado con diagramas en
+**[`backend/db/MODELO-DATOS.md`](backend/db/MODELO-DATOS.md)** — incluye el **MER** (modelo
+entidad‑relación) y el **MR** (modelo relacional). Para verlos/editarlos de forma gráfica hay
+dos archivos **draw.io** separados:
 
-```mermaid
-erDiagram
-    Usuario          ||--o{ CuentaBilletera : "tiene"
-    Billetera        ||--o{ CuentaBilletera : "se vincula en"
-    CuentaBilletera  ||--o{ Movimiento      : "registra"
-    Categoria        ||--o{ Movimiento      : "clasifica"
-    Usuario          ||--o{ UsuarioRol      : "tiene"
-    Rol              ||--o{ UsuarioRol      : "asignado a"
-    Usuario          ||--o{ Contacto        : "propietario"
-    Usuario          ||--o{ Notificacion    : "recibe"
-    Usuario          ||--o{ MetodoPagoExterno : "registra"
-    Comercio         ||--o{ Sucursal        : "tiene"
-    Comercio         ||--o{ ComercioBilletera : "acepta"
-    Billetera        ||--o{ ComercioBilletera : "es aceptada en"
-    Usuario          ||--o{ SolicitudCobro      : "solicita"
-    SolicitudCobro   ||--o{ SolicitudCobroDetalle : "tiene"
-    Usuario          ||--o{ TicketSoporte    : "abre"
-    TicketSoporte    ||--o{ TicketMensaje    : "incluye"
-    TicketMensaje    ||--o{ TicketAdjunto    : "lleva"
-```
+- **[`backend/db/MER.drawio`](backend/db/MER.drawio)** — MER en notación Chen (entidades,
+  rombos de relación, atributos en óvalos con la PK subrayada, cardinalidades `(1,1)`/`(1,n)`
+  y tipo `1:N` / `N:M`).
+- **[`backend/db/MR.drawio`](backend/db/MR.drawio)** — MR con las 20 tablas en formato ER de
+  draw.io (`PK`, `FK1`, `FK2`…) y flechas a la tabla referenciada.
 
-El script de inicialización [`backend/db/init.sql`](backend/db/init.sql) es **idempotente**
-(usa `IF DB_ID`, `IF OBJECT_ID`, `IF COL_LENGTH`, `IF NOT EXISTS sys.check_constraints`) y
-se puede correr varias veces sin romper la base. Incluye seeds de catálogo (billeteras
-argentinas, categorías de movimiento, roles `User` / `Admin`) y los `ALTER TABLE` necesarios
-para el campo JSON de metadata y el flag de anulación.
+Abrilos en [app.diagrams.net](https://app.diagrams.net) o con la extensión Draw.io de VS Code.
+El script de creación es
+**[`backend/db/init.sql`](backend/db/init.sql)**, idempotente (`IF OBJECT_ID … IS NULL`,
+`IF COL_LENGTH … IS NULL`, `IF NOT EXISTS …`): se puede correr varias veces sin romper nada.
+
+Resumen de los módulos:
+
+| Módulo | Tablas |
+|---|---|
+| Dominio base | `Usuario`, `Billetera`, `Categoria`, `CuentaBilletera`, `Movimiento` |
+| Seguridad / roles | `Rol`, `UsuarioRol` (N‑N) |
+| Red de contactos | `Contacto` (N‑N usuario↔usuario) |
+| Comercios y QR | `Comercio`, `Sucursal`, `ComercioBilletera` (N‑N) |
+| Solicitudes de cobro | `SolicitudCobro`, `SolicitudCobroDetalle` |
+| Soporte técnico | `MotivoReporte`, `TicketSoporte`, `TicketMensaje`, `TicketAdjunto` |
+| Notificaciones / métodos | `Notificacion`, `MetodoPagoExterno` |
+| Auditoría | `Auditoria` (+ triggers sobre `Movimiento` y `CuentaBilletera`) |
 
 ## Endpoints expuestos
 
@@ -164,99 +146,169 @@ para el campo JSON de metadata y el flag de anulación.
 | Método | Ruta                 | Descripción                                  | Auth     |
 |--------|----------------------|----------------------------------------------|----------|
 | POST   | `/api/auth/register` | Registra un usuario (email único + BCrypt)   | Público  |
-| POST   | `/api/auth/login`    | Valida credenciales y devuelve un JWT con roles | Público  |
+| POST   | `/api/auth/login`    | Valida credenciales y devuelve JWT con roles | Público  |
 | GET    | `/api/auth/me`       | Devuelve el usuario del token                | 🔒 JWT   |
 
 ### Operaciones transaccionales — `OperacionesController`
 
-| Método | Ruta                                   | Descripción                                                          | Auth   |
-|--------|----------------------------------------|----------------------------------------------------------------------|--------|
-| POST   | `/api/operaciones/enviar`              | Egreso desde una cuenta (1 movimiento + saldo)                       | 🔒 JWT |
-| POST   | `/api/operaciones/cambiar`             | Cambio entre 2 wallets del mismo usuario (2 movimientos + 2 saldos)  | 🔒 JWT |
-| POST   | `/api/operaciones/pagar-qr`            | Pago a comercio (egreso + saldo + metadata JSON del QR)              | 🔒 JWT |
-| POST   | `/api/operaciones/{movimientoId}/anular` | Anula un movimiento y revierte el saldo                            | 🔒 JWT |
+| Método | Ruta                                     | Descripción                                          | Auth   |
+|--------|------------------------------------------|------------------------------------------------------|--------|
+| POST   | `/api/operaciones/enviar`                | Egreso desde una cuenta (movimiento + saldo)         | 🔒 JWT |
+| POST   | `/api/operaciones/cambiar`               | Cambio entre 2 wallets del usuario (2 movs + 2 saldos)| 🔒 JWT |
+| POST   | `/api/operaciones/pagar-qr`              | Pago a comercio (egreso + saldo + metadata JSON QR)  | 🔒 JWT |
+| POST   | `/api/operaciones/{movimientoId}/anular` | Anula un movimiento y revierte el saldo              | 🔒 JWT |
 
-Todas validan **ownership**: la cuenta involucrada tiene que pertenecer al usuario
-autenticado. Los usuarios con rol `Admin` saltean este chequeo (uso de soporte).
+### Cuentas / vínculo de billeteras — `CuentasBilleteraController`
 
-### CRUD del dominio
+| Método | Ruta                                       | Descripción                                  | Auth          |
+|--------|--------------------------------------------|----------------------------------------------|---------------|
+| GET    | `/api/cuentas-billetera/me`                | Cuentas activas del usuario autenticado      | 🔒 JWT        |
+| POST   | `/api/cuentas-billetera/vincular`          | Vincula una billetera al usuario (BE‑08)     | 🔒 JWT        |
+| DELETE | `/api/cuentas-billetera/{id}/desvincular`  | Desvincula (soft‑delete) una cuenta propia   | 🔒 JWT        |
+| GET    | `/api/cuentas-billetera`                   | Todas las cuentas (cross‑user)               | 🔒 Admin      |
 
-| Método | Ruta                          | Auth requerida                  |
-|--------|-------------------------------|---------------------------------|
-| varios | `/api/usuarios/*`             | 🔒 JWT (lista: solo Admin)      |
-| varios | `/api/cuentas-billetera/*`    | 🔒 JWT (lista: solo Admin)      |
-| varios | `/api/movimientos/*`          | 🔒 JWT (lista: solo Admin)      |
-| varios | `/api/contactos/*`            | 🔒 JWT                          |
-| varios | `/api/tickets-soporte/*`      | 🔒 JWT                          |
-| varios | `/api/metodos-pago/*`         | 🔒 JWT                          |
-| varios | `/api/billeteras/*`           | Público (catálogo)              |
-| varios | `/api/categorias/*`           | Público (catálogo)              |
+### Otros módulos
 
-### Endpoints "me" — filtran por usuario autenticado
+| Módulo | Rutas | Auth |
+|--------|-------|------|
+| Movimientos | `GET /api/movimientos/me`, `GET/POST/PUT/DELETE /api/movimientos/*` | 🔒 JWT (lista: Admin) |
+| Contactos | `GET /api/contactos/{usuarioPropietarioId}`, `POST /api/contactos`, `DELETE /api/contactos/{prop}/{contacto}` | 🔒 JWT |
+| Solicitudes de cobro | `GET /api/solicitudes-cobro/me`, `GET /{id}`, `POST`, `PUT /lineas/{detalleId}/pagar` | 🔒 JWT |
+| Soporte | `GET /api/tickets-soporte/me`, `GET /{id}`, `POST /api/tickets-soporte` | 🔒 JWT |
+| Métodos de pago | `GET /api/metodos-pago/usuario/{usuarioId}`, `POST`, `DELETE /{id}` | 🔒 JWT |
+| Usuarios | `GET/PUT/DELETE /api/usuarios/*` | 🔒 JWT (lista/delete: Admin) |
+| Catálogos | `GET /api/billeteras`, `GET /api/categorias` | Público |
+| Prueba de auth | `GET /api/time`, `GET /api/time/secure` | Público / 🔒 JWT |
 
-| Método | Ruta                            | Descripción                          | Auth   |
-|--------|---------------------------------|--------------------------------------|--------|
-| GET    | `/api/cuentas-billetera/me`     | Cuentas vinculadas al usuario actual | 🔒 JWT |
-| GET    | `/api/movimientos/me`           | Movimientos del usuario actual       | 🔒 JWT |
+## Cómo correrlo en local (paso a paso)
 
-### Prueba de auth — `TimeController`
+### 0) Requisitos previos
 
-| Método | Ruta                | Descripción                          | Auth     |
-|--------|---------------------|--------------------------------------|----------|
-| GET    | `/api/time`         | Hora del server (demo público)       | Público  |
-| GET    | `/api/time/secure`  | Hora del server + usuario (demo)     | 🔒 JWT   |
+Instalá (una sola vez):
 
-## Frontend (Expo)
+- **.NET SDK 10** → https://dotnet.microsoft.com/download
+- **SQL Server Express** (2022 o 2025) → instancia por defecto `localhost\SQLEXPRESS`
+- **SQL Server Management Studio (SSMS)** → para correr el script de la base
+- **Neo4j Desktop** → https://neo4j.com/download (creá una instancia local y arrancala)
+- **Node.js 20+** y **pnpm** → `npm install -g pnpm`
+- **Expo Go** en el celular (App Store / Play Store) para probar en dispositivo
 
-Aplicación móvil con navegación basada en **Expo Router** (file-based). Estructura de
-rutas agrupadas por flujo:
+---
 
+### 1) Crear la base de datos (SQL Server)
+
+1. Abrí **SSMS** y conectate a tu instancia (`localhost\SQLEXPRESS`, Windows Auth, marcá
+   *Trust server certificate*).
+2. Menú **File → Open → File…** y abrí
+   `backend/db/init.sql`.
+3. Apretá **Execute (F5)**. Crea la base `BilleterasDB`, las 20 tablas, los seeds (billeteras,
+   categorías, roles, motivos de soporte) y los triggers de auditoría. El script es idempotente:
+   si lo corrés de nuevo no rompe nada.
+
+---
+
+### 2) Configurar el backend — **qué cambiar exactamente**
+
+Editá **dos archivos** y cambiá estos valores por los tuyos:
+
+**a) `backend/Billeteras.Apps.WebApiApp/appsettings.json`**
+
+```jsonc
+"ConnectionStrings": {
+  // Cambiá "Server=FRANCO" por el nombre de TU servidor SQL.
+  // Si usás SQL Express local, normalmente es: localhost\SQLEXPRESS
+  "BilleterasDB": "Server=localhost\\SQLEXPRESS;Database=BilleterasDB;Integrated Security=True;TrustServerCertificate=True;"
+},
+"Neo4j": {
+  "Uri": "bolt://localhost:7687",
+  "User": "neo4j",
+  // Cambiá esto por la contraseña que pusiste al crear la instancia Neo4j.
+  "Password": "TU_PASSWORD_NEO4J"
+}
 ```
-Frontend/app/
-├── _layout.tsx
-├── index.tsx
-├── (auth)/        # login + registro
-├── (tabs)/        # home, billeteras, actividad, perfil
-├── (details)/     # detalle de billetera (parametrizado mp/ua/lm),
-│                  #   vincular nueva billetera, sincronizando…, conectada
-├── (send)/        # flujo Enviar (recipient → amount → confirm → success)
-├── (request)/     # flujo Pedir
-├── (exchange)/    # flujo Cambiar (amount → confirm → success)
-└── (payqr)/       # flujo Pagar QR (scanner → detected → success)
+
+> Nota: en JSON la barra invertida se escribe doble → `localhost\\SQLEXPRESS`.
+
+**b) `backend/Billeteras.Apps.WebApiApp/appsettings.Development.json`**
+
+```jsonc
+"ConnectionStrings": {
+  "BilleterasDB": "Server=localhost\\SQLEXPRESS;Database=BilleterasDB;Integrated Security=True;TrustServerCertificate=True;"
+}
 ```
 
-El estado global de billeteras y movimientos vive en
-[`src/context/WalletsContext.tsx`](Frontend/src/context/WalletsContext.tsx), que orquesta la
-carga paralela de cuentas + actividad y expone `refresh()` para revalidar después de cada
-operación. La conexión a la API se centraliza en
-[`src/api/client.ts`](Frontend/src/api/client.ts) con `ApiError` tipado, manejo de errores
-de red y JWT en memoria. Los servicios de dominio (`cuentas.ts`, `movimientos.ts`,
-`operaciones.ts`) consumen ese cliente y exponen funciones tipadas a las pantallas.
+> Si **no** vas a usar Neo4j, no pasa nada: la API arranca igual y solo loguea un aviso. El resto
+> funciona contra SQL Server.
 
-Para correr el FE contra el backend desde un celular físico hay que ajustar `BASE_URL` en
-`client.ts` apuntando a la IP LAN de la PC (`http://192.168.x.x:5001`) y abrir el firewall.
+---
 
-## Neo4j (BD-04)
+### 3) Levantar el backend
 
-La integración con la base de grafos vive en `Billeteras.Negocio`:
+En una terminal:
 
-- [`INeo4jService`](backend/Billeteras.Negocio/Interfaces/INeo4jService.cs) abstrae el driver
-  con dos métodos: `ExecuteAsync` (escritura / esquema) y `QueryAsync` (lectura).
-- [`Neo4jService`](backend/Billeteras.Negocio/Neo4jService.cs) implementa la interfaz como
-  singleton `IAsyncDisposable` y lee `Uri / User / Password` desde la sección `Neo4j` del
-  `appsettings.json`.
+```bash
+cd backend/Billeteras.Apps.WebApiApp
+dotnet run --launch-profile http
+```
 
-Al arrancar la API (`Program.cs`) se crean los 4 constraints de unicidad sobre
-`Usuario`, `Billetera`, `CuentaBilletera` y `Comercio`, todo dentro de un `try/catch`
-defensivo: si Neo4j no está corriendo la API sigue funcionando contra SQL.
+Queda escuchando en **http://localhost:5001**. Para probar que anda, en el navegador o con curl:
 
-Los scripts de demo viven en [`backend/db/neo4j/`](backend/db/neo4j/):
+```bash
+curl http://localhost:5001/api/billeteras
+# Debe devolver el JSON con Mercado Pago, Ualá, Brubank, Naranja X, Personal Pay.
+```
 
-| Archivo | Para qué sirve |
-|---|---|
-| [`seed_demo.cypher`](backend/db/neo4j/seed_demo.cypher)       | Espeja en Neo4j los nodos y relaciones que producirían los hooks de Negocio. Usa IDs reales del seed SQL. |
-| [`queries_demo.cypher`](backend/db/neo4j/queries_demo.cypher) | Las 4 consultas de negocio de la sección 3.9 del informe BD-04 listas para pegar en el Browser. |
-| [`README.md`](backend/db/neo4j/README.md)                     | Convención de nombres de relaciones (sin tilde), estado de hooks por evento y cómo correr los scripts. |
+> Para probar desde el **celular**, el backend tiene que escuchar en tu red. El perfil `http` ya
+> usa `http://0.0.0.0:5001` (todas las interfaces). La primera vez Windows va a pedir permiso de
+> firewall → **Permitir acceso** en redes privadas.
+
+---
+
+### 4) Configurar y levantar el frontend
+
+**a)** Apuntá la app a tu backend. Editá `Frontend/src/api/client.ts`:
+
+```ts
+// Para probar en el navegador (web):
+export const BASE_URL = 'http://localhost:5001';
+
+// Para probar en el CELULAR con Expo Go, poné la IP LAN de tu PC:
+// (en Windows: `ipconfig` → "Dirección IPv4". Ej: 192.168.0.4)
+export const BASE_URL = 'http://192.168.0.4:5001';
+```
+
+> Esa IP es de cada dev — **no la commitees**. PC y celular tienen que estar en la **misma WiFi**.
+
+**b)** Instalá dependencias y arrancá Metro:
+
+```bash
+cd Frontend
+pnpm install
+pnpm start          # equivale a: expo start --lan
+```
+
+**c)** Abrí la app:
+- **Celular**: escaneá el QR que aparece en la terminal con **Expo Go**.
+- **Web**: apretá `w` en la terminal de Metro.
+- Si algo quedó cacheado raro: `pnpm start -- --clear`.
+
+---
+
+### 5) Probar el flujo
+
+1. **Crear cuenta** → te lleva al login con el email precargado.
+2. **Ingresar** con esas credenciales.
+3. **Conectar billetera** → elegí una y seguí el flujo (permisos → sincronizando → activa).
+4. Operá: **Enviar / Pedir (QR) / Cambiar / Pagar QR** (pide biometría antes de confirmar).
+
+---
+
+### 6) (Opcional) Poblar el grafo Neo4j
+
+Con la instancia Neo4j arrancada, la API crea los constraints sola al iniciar. Para cargar datos
+de demo y ver el grafo, abrí el **Neo4j Browser** y ejecutá
+`backend/db/neo4j/seed_demo.cypher`. Las consultas de negocio están en
+`backend/db/neo4j/queries_demo.cypher`. Más detalle en `backend/db/neo4j/README.md`.
 
 ## Estructura del repositorio
 
@@ -266,92 +318,46 @@ SAOT-Unificador-de-Billeteras-1/
 ├── README.md                                  # Este archivo
 ├── backend/
 │   ├── db/
-│   │   ├── init.sql                           # Script idempotente de creación SQL Server
+│   │   ├── init.sql                           # Creación idempotente de SQL Server (20 tablas)
+│   │   ├── MODELO-DATOS.md                    # MER + MR (diagramas de la base)
 │   │   ├── seed_test.sql                      # Datos de prueba opcionales
-│   │   └── neo4j/                             # Scripts Cypher (BD-04)
-│   │       ├── seed_demo.cypher
-│   │       ├── queries_demo.cypher
-│   │       └── README.md
-│   ├── Billeteras.Entidades/                  # POCOs del dominio (DataAnnotations)
+│   │   └── neo4j/                             # Scripts Cypher + README (BD-04)
+│   ├── Billeteras.Entidades/                  # POCOs del dominio
 │   ├── Billeteras.Datos/                      # Interfaces de repo + implementación ADO.NET
-│   │   └── Interfaces/
 │   ├── Billeteras.DatosEF/                    # DbContext + implementación EF Core
 │   ├── Billeteras.Negocio/                    # Servicios + DTOs + Neo4jService
-│   │   ├── Interfaces/
-│   │   └── Dtos/
 │   └── Billeteras.Apps.WebApiApp/             # Web API: Program.cs, Controllers, DTOs
-│       ├── Controllers/
-│       ├── Dtos/
-│       ├── Requests/                          # Archivos .http de prueba
-│       └── Properties/
 └── Frontend/
-    ├── app/                                   # Expo Router (file-based routing)
-    │   ├── (auth)/                            # login / registro
-    │   ├── (tabs)/                            # home / billeteras / actividad / perfil
-    │   ├── (details)/                         # detalle, vincular, sincronizando
-    │   ├── (send)/                            # flujo Enviar
-    │   ├── (request)/                         # flujo Pedir
-    │   ├── (exchange)/                        # flujo Cambiar
-    │   └── (payqr)/                           # flujo Pagar QR
-    ├── src/
-    │   ├── api/                               # client.ts, auth, cuentas, movimientos, operaciones
-    │   ├── components/                        # piezas reusables (botones, glyphs, headers)
-    │   ├── context/                           # SessionContext, WalletsContext
-    │   ├── data/                              # mocks + tipos (Wallet, ActivityItem)
-    │   ├── theme/                             # tokens de diseño
-    │   └── utils/                             # format, helpers
-    ├── assets/
-    ├── app.json
-    └── package.json
+    ├── app/                                   # Expo Router (file-based)
+    │   ├── (auth)/        login / registro / recuperar contraseña
+    │   ├── (tabs)/        home / billeteras / actividad / perfil
+    │   ├── (details)/     detalle, conectar, perfil, seguridad, soporte, reportes
+    │   ├── (send)/        flujo Enviar
+    │   ├── (request)/     flujo Pedir (QR real)
+    │   ├── (exchange)/    flujo Cambiar
+    │   └── (payqr)/       flujo Pagar QR (cámara real)
+    └── src/
+        ├── api/           client.ts + servicios (auth, cuentas, operaciones, soporte…)
+        ├── components/    piezas reusables
+        ├── context/       SessionContext, WalletsContext
+        ├── data/          tipos + mocks de desarrollo
+        ├── theme/         tokens de diseño
+        └── utils/         format, biometrics, helpers
 ```
-
-## Cómo correrlo en local
-
-### Requisitos
-
-- .NET SDK 10
-- SQL Server (Express 2025 / Developer, instancia `SQLEXPRESS`)
-- Neo4j Desktop (instancia `Saot` en `bolt://localhost:7687`)
-- Node.js + pnpm (para el frontend)
-- Expo Go en el celular (opcional, para probar desde dispositivo)
-
-### Pasos
-
-1. **SQL Server**: abrir `backend/db/init.sql` en SSMS conectado a `localhost\SQLEXPRESS` y
-   ejecutarlo (`F5`). El script crea la BD `BilleterasDB`, las 20+ tablas y carga seeds.
-2. **Connection strings**: ajustar `backend/Billeteras.Apps.WebApiApp/appsettings.Development.json`
-   (SQL Server) y `appsettings.json` (Neo4j password).
-3. **Backend**:
-   ```powershell
-   cd backend\Billeteras.Apps.WebApiApp
-   dotnet run --launch-profile http
-   ```
-   Levanta en `http://localhost:5001` (o `http://0.0.0.0:5001` si lo configurás para LAN).
-4. **Frontend**:
-   ```powershell
-   cd Frontend
-   pnpm install
-   pnpm start
-   ```
-   Genera el QR para Expo Go. Si vas a probar desde el celu, cambiá `BASE_URL` en
-   `Frontend/src/api/client.ts` a la IP LAN de la PC.
-5. **Neo4j (opcional)**: con la instancia corriendo, los 4 constraints se aplican solos al
-   arrancar la API. Para poblar el grafo con datos de demo, abrir el Browser y ejecutar
-   `backend/db/neo4j/seed_demo.cypher`.
 
 ## Roadmap (trabajos prácticos del cuatrimestre)
 
-| TP    | Descripción                                                    | Estado     |
-|-------|----------------------------------------------------------------|------------|
-| TP-01 | Definición del dominio y prototipo de interfaz                 | ✅ Hecho    |
-| TP-02 | Configuración inicial del backend y autenticación              | ✅ Hecho    |
-| TP-03 | Integración Frontend–Backend                                   | ✅ Hecho    |
-| TP-04 | Modelo de datos y primeras operaciones CRUD                    | ✅ Hecho    |
-| TP-05 | Implementación de entidades principales e interfaces           | ✅ Hecho    |
-| TP-06 | Operaciones maestro-detalle y transacciones                    | ✅ Hecho    |
-| TP-07 | Flujos operativos complejos y control de estados               | ✅ Hecho    |
-| TP-08 | Seguridad y control de acceso                                  | ✅ Hecho    |
-| TP-09 | Consultas avanzadas, filtros y reportes (incluye Neo4j BD-04)  | 🔄 En curso |
-| TP-10 | Documentación técnica de la API y pruebas                      | Pendiente  |
-| TP-11 | Mejora de UX y optimización                                    | Pendiente  |
-| TP-12 | Presentación preliminar (pre-entrega)                          | Pendiente  |
+| TP    | Descripción                                                    | Estado      |
+|-------|----------------------------------------------------------------|-------------|
+| TP-01 | Definición del dominio y prototipo de interfaz                 | ✅ Hecho     |
+| TP-02 | Configuración del backend y autenticación                      | ✅ Hecho     |
+| TP-03 | Integración Frontend–Backend                                   | ✅ Hecho     |
+| TP-04 | Modelo de datos y primeras operaciones CRUD                    | ✅ Hecho     |
+| TP-05 | Entidades principales e integración de interfaces              | ✅ Hecho     |
+| TP-06 | Operaciones maestro‑detalle y transacciones                    | ✅ Hecho     |
+| TP-07 | Flujos operativos complejos y control de estados               | ✅ Hecho     |
+| TP-08 | Seguridad y control de acceso                                  | ✅ Hecho     |
+| TP-09 | Consultas avanzadas, filtros y reportes (incluye Neo4j BD‑04)  | 🔄 En curso |
+| TP-10 | Documentación técnica de la API y pruebas                      | 🔄 En curso |
+| TP-11 | Mejora de UX y optimización                                    | Pendiente   |
+| TP-12 | Presentación preliminar (pre‑entrega)                          | Pendiente   |

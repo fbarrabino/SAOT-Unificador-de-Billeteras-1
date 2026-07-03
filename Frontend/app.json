@@ -23,7 +23,19 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SaOT necesita acceso a tu cámara para escanear códigos QR de pago."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "SaOT usa Face ID para confirmar tus pagos de forma segura."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

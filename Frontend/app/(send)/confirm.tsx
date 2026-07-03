@@ -19,6 +19,7 @@ import { colors, fonts, gradients, radii, shadow } from '@/theme/tokens';
 import { useWallets } from '@/context/WalletsContext';
 import { enviar, CATEGORIA_EGRESO_DEFAULT } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
+import { confirmarConBiometria } from '@/utils/biometrics';
 
 export default function SendConfirm() {
   const { to, from, amt } = useLocalSearchParams<{ to?: string; from?: WalletKey; amt?: string }>();
@@ -34,6 +35,14 @@ export default function SendConfirm() {
       Alert.alert('No se puede enviar', 'No se encontró la cuenta de origen vinculada al backend.');
       return;
     }
+
+    // D5 — confirmación biométrica antes de mover dinero.
+    const bio = await confirmarConBiometria(`Enviar ${fmt(n)} a ${contact.name}`);
+    if (!bio.ok) {
+      Alert.alert('Verificación cancelada', bio.motivo ?? 'No se confirmó el envío.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await enviar({

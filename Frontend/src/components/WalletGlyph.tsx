@@ -1,21 +1,34 @@
 import React from 'react';
 import { View, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 
-type Key = 'mp' | 'ua' | 'lm';
+export type WalletGlyphKey = 'mp' | 'ua' | 'lm' | 'bb' | 'nx';
 
-const LOGOS: Record<Key, ImageSourcePropType> = {
+const LOGOS: Record<WalletGlyphKey, ImageSourcePropType> = {
   mp: require('../assets/wallets/mplogo.webp'),
-  ua: require('../assets/wallets/logouala.webp'),
+  ua: require('../assets/wallets/ualalogo.webp'),
   lm: require('../assets/wallets/logolm.webp'),
+  bb: require('../assets/wallets/brulogo.webp'),
+  nx: require('../assets/wallets/nxlogo.webp'),
+};
+
+// Brubank y Lemon usan logos con fondo propio (oscuro), Mercado Pago / Ualá /
+// Naranja X usan logos pensados sobre fondo blanco — los renderizamos sobre
+// un círculo blanco para que se vean limpios.
+const LOGOS_SOBRE_FONDO_CLARO: Record<WalletGlyphKey, boolean> = {
+  mp: true,
+  ua: true,
+  nx: true,
+  lm: false,
+  bb: false,
 };
 
 type Props = {
-  wallet: Key;
+  wallet: WalletGlyphKey;
   size?: number;
 };
 
 export function WalletGlyph({ wallet, size = 34 }: Props) {
-  const isLemon = wallet === 'lm';
+  const fondoClaro = LOGOS_SOBRE_FONDO_CLARO[wallet];
   return (
     <View
       style={[
@@ -24,16 +37,16 @@ export function WalletGlyph({ wallet, size = 34 }: Props) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: isLemon ? 'transparent' : '#FFFFFF',
+          backgroundColor: fondoClaro ? '#FFFFFF' : 'transparent',
         },
       ]}
     >
       <Image
         source={LOGOS[wallet]}
         style={
-          isLemon
-            ? { width: size, height: size }
-            : { width: size * 0.82, height: size * 0.82 }
+          fondoClaro
+            ? { width: size * 0.82, height: size * 0.82 }
+            : { width: size, height: size }
         }
         resizeMode="contain"
       />

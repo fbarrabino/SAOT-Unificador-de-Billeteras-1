@@ -1,16 +1,6 @@
-/**
- * wallets.ts — Tipos y datos de fallback de billeteras
- *
- * MOCK_WALLETS: datos hardcodeados que se usan SOLO cuando el backend
- * no está disponible (modo desarrollo). En producción los datos reales
- * vienen de GET /api/cuentas-billetera/me vía src/api/cuentas.ts.
- *
- * WALLETS se mantiene como alias de MOCK_WALLETS para no romper
- * imports existentes mientras se termina la migración.
- */
 import { gradients } from '@/theme/tokens';
 
-export type WalletKey = 'mp' | 'ua' | 'lm';
+export type WalletKey = 'mp' | 'ua' | 'lm' | 'bb' | 'nx';
 
 export type Wallet = {
   key: WalletKey;
@@ -18,21 +8,29 @@ export type Wallet = {
   short: string;
   bal: number;
   tint: readonly [string, string];
-  /** Id de la cuenta del usuario en el backend (CuentaBilleteraId).
-   *  Indefinido cuando la wallet viene del mock de desarrollo. */
   cuentaId?: number;
 };
 
-/** Datos de desarrollo — solo se usan si el backend no responde. */
+// Catálogo indexado por la sigla que envía Fabri desde la lista
+export const WALLET_CATALOG: Record<string, { dbId: number; name: string; initials: string; color: string }> = {
+  "mp": { dbId: 1, name: "Mercado Pago", initials: "MP", color: "#009EE3" },
+  "ua": { dbId: 2, name: "Ualá", initials: "UA", color: "#FF3366" },
+  "bb": { dbId: 3, name: "Brubank", initials: "BB", color: "#6842FF" },
+  "nx": { dbId: 4, name: "Naranja X", initials: "NX", color: "#FF5E00" },
+  "pp": { dbId: 5, name: "Personal Pay", initials: "PP", color: "#00B4E6" },
+  "rb": { dbId: 6, name: "Reba", initials: "RB", color: "#00D287" },
+  "bl": { dbId: 7, name: "Belo", initials: "BL", color: "#6A2BFE" },
+  "cd": { dbId: 8, name: "Cuenta DNI", initials: "CD", color: "#0055A6" },
+  "md": { dbId: 9, name: "MODO", initials: "MD", color: "#2B1A66" }
+};
+
 export const MOCK_WALLETS: Wallet[] = [
-  { key: 'mp', name: 'Mercado Pago', short: 'Mercado Pago', bal: 3200.5,  tint: gradients.mpTint },
-  { key: 'ua', name: 'Ualá',         short: 'Ualá',         bal: 1500.0,  tint: gradients.uaTint },
-  { key: 'lm', name: 'Lemon',        short: 'Lemon',        bal: 7749.75, tint: gradients.lmTint },
+  { key: 'mp', name: 'Mercado Pago', short: 'Mercado Pago', bal: 3200.5, tint: gradients.mpTint },
+  { key: 'ua', name: 'Ualá', short: 'Ualá', bal: 1500.0, tint: gradients.uaTint },
+  { key: 'lm', name: 'Lemon', short: 'Lemon', bal: 7749.75, tint: gradients.lmTint },
 ];
 
-/** @deprecated Usar MOCK_WALLETS o el contexto WalletsContext. */
 export const WALLETS = MOCK_WALLETS;
 
-/** Busca una billetera en la lista dada (por defecto el mock). */
 export const findWallet = (k: WalletKey, wallets: Wallet[] = MOCK_WALLETS) =>
   wallets.find(w => w.key === k)!;

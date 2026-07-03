@@ -16,14 +16,14 @@ public class CuentaBilleteraNegocio(ICuentaBilleteraRepository repo) : ICuentaBi
         return cuenta is null ? null : Map(cuenta);
     }
 
-    public async Task<CuentaBilleteraResponse> CrearAsync(CuentaBilleteraRequest req)
+    public async Task<CuentaBilleteraResponse> CrearAsync(int usuarioId, CrearCuentaBilleteraRequest req)
     {
         var cuenta = new CuentaBilletera
         {
-            UsuarioId = req.UsuarioId,
+            UsuarioId = usuarioId,
             BilleteraId = req.BilleteraId,
             Alias = req.Alias,
-            SaldoActual = req.SaldoActual
+            SaldoActual = req.SaldoInicial
         };
         cuenta.CuentaBilleteraId = await repo.InsertarAsync(cuenta);
         return Map(cuenta);

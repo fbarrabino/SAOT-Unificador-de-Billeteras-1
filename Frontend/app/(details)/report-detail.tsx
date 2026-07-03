@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   Pressable,
   TextInput,
@@ -16,7 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import Svg, { Path, Rect } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { colors, fonts, radii, spacing, type } from '@/theme/tokens';
@@ -33,11 +35,56 @@ export default function ReportDetailScreen() {
   const [detalle, setDetalle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imagen, setImagen] = useState<ImagePicker.ImagePickerAsset | null>(null);
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para adjuntar capturas.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      quality: 0.8,
+      base64: true,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setImagen(result.assets[0]);
+    }
+  };
+
+  const pickFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara para tomar capturas.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.8,
+      base64: true,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setImagen(result.assets[0]);
+    }
+  };
 
   const handleAdjuntar = () => {
-    // expo-image-picker no está instalado aún.
-    // Para habilitarlo: pnpm add expo-image-picker
-    Alert.alert('Próximamente', 'La función de adjuntar capturas estará disponible en la próxima versión.');
+    if (Platform.OS === 'web') {
+      // En web solo galería está disponible
+      pickFromGallery();
+      return;
+    }
+    Alert.alert(
+      'Adjuntar captura',
+      'Elegí de dónde querés adjuntar la imagen',
+      [
+        { text: 'Galería', onPress: pickFromGallery },
+        { text: 'Cámara', onPress: pickFromCamera },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
   };
 
   const handleEnviar = async () => {
@@ -49,10 +96,15 @@ export default function ReportDetailScreen() {
     setIsLoading(true);
     try {
       const parsedMotivoId = parseInt(motivoId ?? '4', 10);
+
+      const adjuntos = imagen?.base64
+        ? [{ urlArchivo: `data:image/jpeg;base64,${imagen.base64}`, tipoMime: 'image/jpeg' }]
+        : [];
+
       const ticket = await crearTicket({
         motivoId: parsedMotivoId,
         cuerpoMensaje: detalle.trim(),
-        adjuntos: [], // las imágenes requerirían upload a storage; por ahora vacío
+        adjuntos,
       });
       router.replace({
         pathname: '/report-success',
@@ -111,21 +163,47 @@ export default function ReportDetailScreen() {
             </View>
 
             {/* Adjuntar captura */}
-            <Pressable style={styles.adjuntarRow} onPress={handleAdjuntar} disabled={isLoading}>
-              <View style={styles.adjuntarIcon}>
-                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none"
-                  stroke={colors.cyan} strokeWidth={2}
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <Rect x={3} y={3} width={18} height={18} rx={2} />
-                  <Path d="M8.5 8.5m-1.5 0a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0" />
-                  <Path d="M21 15l-5-5L5 21" />
-                </Svg>
+            {imagen ? (
+              /* Thumbnail preview */
+              <View style={styles.thumbnailWrapper}>
+                <Image
+                  source={{ uri: imagen.uri }}
+                  style={styles.thumbnail}
+                  resizeMode="cover"
+                />
+                <Pressable
+                  style={styles.removeBtn}
+                  onPress={() => setImagen(null)}
+                  hitSlop={8}
+                >
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none"
+                    stroke="#fff" strokeWidth={2.5}
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <Line x1={18} y1={6} x2={6} y2={18} />
+                    <Line x1={6} y1={6} x2={18} y2={18} />
+                  </Svg>
+                </Pressable>
+                <Pressable style={styles.cambiarBtn} onPress={handleAdjuntar} disabled={isLoading}>
+                  <Text style={styles.cambiarText}>Cambiar imagen</Text>
+                </Pressable>
               </View>
-              <View>
-                <Text style={styles.adjuntarText}>Adjuntar captura</Text>
-                <Text style={styles.adjuntarSub}>(opcional)</Text>
-              </View>
-            </Pressable>
+            ) : (
+              <Pressable style={styles.adjuntarRow} onPress={handleAdjuntar} disabled={isLoading}>
+                <View style={styles.adjuntarIcon}>
+                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none"
+                    stroke={colors.cyan} strokeWidth={2}
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <Rect x={3} y={3} width={18} height={18} rx={2} />
+                    <Path d="M8.5 8.5m-1.5 0a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0" />
+                    <Path d="M21 15l-5-5L5 21" />
+                  </Svg>
+                </View>
+                <View>
+                  <Text style={styles.adjuntarText}>Adjuntar captura</Text>
+                  <Text style={styles.adjuntarSub}>(opcional)</Text>
+                </View>
+              </Pressable>
+            )}
 
             {/* Error */}
             {error ? (
@@ -212,6 +290,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
   },
+
+  // Thumbnail
+  thumbnailWrapper: {
+    borderRadius: radii.card,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    position: 'relative',
+  },
+  thumbnail: {
+    width: '100%',
+    height: 180,
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.60)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cambiarBtn: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.50)',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  cambiarText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: '#fff',
+  },
+
   errorBanner: {
     marginTop: spacing.md,
     backgroundColor: 'rgba(239,68,68,0.12)',

@@ -1,0 +1,30 @@
+### 0. Registrar Usuario
+POST http://localhost:5001/api/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Franco",
+  "apellido": "Barrabino",
+  "email": "abc@hot.com",
+  "password": "Password123"
+}
+
+### 1. Loguearse para obtener el Token
+POST http://localhost:5001/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "abc@hot.com",
+  "password": "Password123"
+}
+
+### 2. Probar tu nueva tarea B4-BE
+POST http://localhost:5001/api/cuentas-billetera
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjMiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiYWJjQGhvdC5jb20iLCJqdGkiOiI2MjVjMmE5Yi0zOTZlLTQ0ZDYtOTM2ZC1kOGIxYzNjYjA2MWQiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJVc2VyIiwiZXhwIjoxNzgyOTQ1MzM5LCJpc3MiOiJCaWxsZXRlcmFzLkFwaSIsImF1ZCI6IkJpbGxldGVyYXMuQ2xpZW50cyJ9.-7a52GyihAxUZkX6zj-sERcWwwMKsxT4Es56XAqzV6A
+
+{
+  "billeteraId": 1,
+  "alias": "Mi Mercado Pago",
+  "saldoInicial": 15000.50
+}

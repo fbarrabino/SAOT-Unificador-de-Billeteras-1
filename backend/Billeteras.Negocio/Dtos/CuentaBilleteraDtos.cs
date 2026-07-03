@@ -8,6 +8,11 @@ public record CuentaBilleteraRequest(
     [MaxLength(100)] string? Alias,
     decimal SaldoActual);
 
+public record CrearCuentaBilleteraRequest(
+    [Range(1, int.MaxValue)] int BilleteraId,
+    [MaxLength(100)] string? Alias,
+    decimal SaldoInicial);
+
 public record CuentaBilleteraResponse(
     int CuentaBilleteraId,
     int UsuarioId,
