@@ -62,7 +62,9 @@ export const type = {
   screenTitle: { fontFamily: fonts.display, fontSize: 26, letterSpacing: -0.4, color: colors.text },
   display: { fontFamily: fonts.displayBold, fontSize: 28, letterSpacing: -0.5, color: colors.text },
   balance: { fontFamily: fonts.displayBold, fontSize: 38, letterSpacing: -0.4, color: colors.text },
+  h3: { fontFamily: fonts.displayBold, fontSize: 22, letterSpacing: -0.3, color: colors.text },
   h4: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.text },
+  bodyBold: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.text },
   body: { fontFamily: fonts.body, fontSize: 14.5, color: colors.muted },
   bodyText: { fontFamily: fonts.body, fontSize: 15, color: colors.text },
   label: {

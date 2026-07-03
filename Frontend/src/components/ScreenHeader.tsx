@@ -4,10 +4,10 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, radii, type } from '@/theme/tokens';
 
-export function ScreenHeader({ title }: { title: string }) {
+export function ScreenHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
     <View style={styles.container}>
-      <Pressable style={styles.btn} onPress={() => router.canGoBack() ? router.back() : router.push('/')}>
+      <Pressable style={styles.btn} onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.push('/')))}>
         <Feather name="chevron-left" size={24} color={colors.text} />
       </Pressable>
 
