@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -43,7 +43,14 @@ export default function ResetNewPassword() {
       <AuroraBackground />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <ScreenHeader title="Nueva contraseña" />
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          style={{ flex: 1 }}
+        >
           <Text style={styles.title}>Creá una nueva contraseña</Text>
           <Text style={styles.lead}>
             Elegí una contraseña segura que no hayas usado antes.
@@ -80,6 +87,7 @@ export default function ResetNewPassword() {
             disabled={!ready}
           />
         </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
