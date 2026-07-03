@@ -204,6 +204,14 @@ CREATE TABLE [dbo].[MotivoReporte] (
 );
 GO
 
+IF NOT EXISTS (SELECT 1 FROM [dbo].[MotivoReporte])
+INSERT INTO [dbo].[MotivoReporte] ([Titulo], [Gravedad]) VALUES
+    ('Pagos', 1),
+    ('Billeteras', 1),
+    ('Cuenta', 1),
+    ('Otro', 1);
+GO
+
 IF OBJECT_ID(N'dbo.TicketSoporte', N'U') IS NULL
 CREATE TABLE [dbo].[TicketSoporte] (
     [TicketId] INT IDENTITY(1,1) PRIMARY KEY,

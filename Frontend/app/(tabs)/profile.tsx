@@ -97,7 +97,7 @@ export default function Profile() {
               </RowIcon>
             </Row>
 
-            <Row label="Ayuda y soporte" sub="FAQ, contactanos" onPress={() => router.push('/support-contact')}>
+            <Row label="Ayuda y soporte" sub="FAQ, contactanos" onPress={() => router.push('/support-faq')}>
               <RowIcon>
                 <Svg width={20} height={20} viewBox="0 0 24 24" {...ICON_PROPS(colors.cyan)}>
                   <Circle cx={12} cy={12} r={10} />
