@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -29,14 +29,7 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login, isAuthenticated } = useSession();
-
-  // Al autenticarse (después del login automático), navegamos al home
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/(tabs)/home');
-    }
-  }, [isAuthenticated]);
+  const { login } = useSession();
 
   // Limpiamos errores al editar cualquier campo
   const clearErr = () => { if (error) setError(null); };
@@ -54,11 +47,15 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      // 1. Crear la cuenta
+      // 1. Crear la cuenta (el backend ya dispara el código de verificación)
       await register(nombre.trim(), apellido.trim(), email.trim().toLowerCase(), password);
       // 2. Login automático para que quede autenticado de una
       await login(email.trim().toLowerCase(), password);
-      // La navegación la maneja el useEffect de arriba
+      // 3. Navegamos explícitamente (no vía useEffect(isAuthenticated)): esta
+      // pantalla puede seguir montada debajo de /login en el stack, y un
+      // efecto reactivo a isAuthenticated se dispararía en ambas a la vez,
+      // generando una carrera que termina en /(tabs)/home en vez de acá.
+      router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim().toLowerCase() } });
     } catch (err) {
       let mensaje: string;
       if (err instanceof ApiError) {

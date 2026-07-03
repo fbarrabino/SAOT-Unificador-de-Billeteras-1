@@ -53,6 +53,10 @@ builder.Services.AddScoped<ICuentaBilleteraNegocio, CuentaBilleteraNegocio>();
 builder.Services.AddScoped<IMovimientoNegocio, MovimientoNegocio>();
 builder.Services.AddScoped<IContactoRepository, ContactoRepositoryEF>();
 
+// --- Códigos de verificación: reset de contraseña / verificación de email (A3/A4/A8) ---
+builder.Services.AddScoped<ICodigoVerificacionRepository, CodigoVerificacionRepositoryEF>();
+builder.Services.AddScoped<IVerificacionNegocio, VerificacionNegocio>();
+
 // Autenticación JWT (Key, Issuer, Audience, ExpiresInMinutes desde appsettings.json)
 var jwt = builder.Configuration.GetSection("Jwt");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));

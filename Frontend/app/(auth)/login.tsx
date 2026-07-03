@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -21,15 +21,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const { login, isLoading, isAuthenticated, error, clearError } = useSession();
-
-  // Cuando el login es exitoso, el contexto actualiza isAuthenticated.
-  // Navegamos desde acá para no mezclar lógica de sesión con navegación.
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/(tabs)/home');
-    }
-  }, [isAuthenticated]);
+  const { login, isLoading, error, clearError } = useSession();
 
   // Limpiamos el error cuando el usuario empieza a editar los campos
   const handleEmailChange = (v: string) => {
@@ -45,7 +37,10 @@ export default function Login() {
   const handleLogin = async () => {
     try {
       await login(email, password);
-      // La navegación la maneja el useEffect de arriba
+      // Navegamos explícitamente acá (no vía useEffect(isAuthenticated)):
+      // esta pantalla puede seguir montada debajo de otras del stack de auth,
+      // y un efecto reactivo a isAuthenticated se dispararía en todas a la vez.
+      router.replace('/(tabs)/home');
     } catch {
       // El error ya fue guardado en el contexto (SessionContext.login lo setea)
       // No hacemos nada extra acá — el mensaje se muestra en el banner de abajo

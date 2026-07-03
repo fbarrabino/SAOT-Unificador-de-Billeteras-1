@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { colors, fonts, type } from '@/theme/tokens';
+import { forgotPassword } from '@/api/auth';
+import { ApiError } from '@/api/client';
 
 function MailCheck() {
   return (
@@ -21,6 +23,24 @@ function MailCheck() {
 }
 
 export default function EmailSent() {
+  const { email } = useLocalSearchParams<{ email: string }>();
+  const [isResending, setIsResending] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleResend = async () => {
+    if (!email) return;
+    setIsResending(true);
+    setFeedback(null);
+    try {
+      await forgotPassword(email);
+      setFeedback('Te reenviamos el código.');
+    } catch (err) {
+      setFeedback(err instanceof ApiError ? err.mensaje : 'No se pudo reenviar el código.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <View style={styles.root}>
       <AuroraBackground />
@@ -30,17 +50,21 @@ export default function EmailSent() {
           <MailCheck />
           <Text style={styles.title}>Email enviado</Text>
           <Text style={styles.lead}>
-            Revisá tu casilla y seguí el link para restablecer tu contraseña. Puede tardar unos
-            minutos.
+            Revisá tu casilla: te enviamos un código de 6 dígitos. Puede tardar unos minutos.
           </Text>
 
-          <Pressable onPress={() => {}} style={styles.resend}>
-            <Text style={styles.resendText}>Reenviar email</Text>
+          <Pressable onPress={handleResend} style={styles.resend} disabled={isResending}>
+            <Text style={styles.resendText}>{isResending ? 'Reenviando...' : 'Reenviar código'}</Text>
           </Pressable>
+
+          {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
         </View>
 
         <View style={styles.footer}>
-          <PrimaryButton label="Ingresé el código" onPress={() => router.push('/(auth)/reset-code')} />
+          <PrimaryButton
+            label="Ingresé el código"
+            onPress={() => router.push({ pathname: '/(auth)/reset-code', params: { email } })}
+          />
         </View>
       </SafeAreaView>
     </View>
@@ -65,5 +89,6 @@ const styles = StyleSheet.create({
   lead: { ...type.body, textAlign: 'center', lineHeight: 21, marginBottom: 22 },
   resend: { paddingVertical: 8 },
   resendText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.cyan },
+  feedback: { ...type.body, fontSize: 12.5, color: colors.muted, marginTop: 8, textAlign: 'center' },
   footer: { padding: 20 },
 });
