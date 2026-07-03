@@ -5,22 +5,15 @@ using Billeteras.Entidades;
 
 namespace Billeteras.DatosEF;
 
-/// Implementación EF Core de las operaciones transaccionales del dominio.
-///
-/// Patrón común:
-///   1. ctx.Database.BeginTransactionAsync()
-///   2. validar cuentas + categorías + saldo
-///   3. agregar movimiento(s) y actualizar saldo(s)
-///   4. SaveChangesAsync()
-///   5. CommitAsync() — o RollbackAsync() vía try/catch ante cualquier excepción
 public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesRepository
 {
     private const string TipoIngreso = "Ingreso";
     private const string TipoEgreso = "Egreso";
 
-    // ─── BE-03 Enviar ─────────────────────────────────────────────────────────
-    public async Task<(int movimientoId, decimal saldoOrigenFinal)> EnviarAsync(
+    // ─── BE-03 Enviar (Modificado para Doble Movimiento) ──────────────────────
+    public async Task<(List<int> movimientosIds, decimal saldoOrigenFinal, decimal? saldoDestinoFinal)> EnviarAsync(
         int cuentaOrigenId,
+        int? cuentaDestinoId,
         int categoriaId,
         decimal monto,
         string? descripcion)
@@ -28,26 +21,63 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         await using IDbContextTransaction tx = await ctx.Database.BeginTransactionAsync();
         try
         {
-            var cuenta = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
+            var origen = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
             await ValidarCategoriaAsync(categoriaId, TipoEgreso);
 
-            var movimiento = new Movimiento
+            var movEgreso = new Movimiento
             {
-                CuentaBilleteraId = cuenta.CuentaBilleteraId,
+                CuentaBilleteraId = origen.CuentaBilleteraId,
                 CategoriaId = categoriaId,
                 Fecha = DateTime.Now,
                 Descripcion = descripcion,
                 Monto = monto,
                 Tipo = TipoEgreso
             };
-            ctx.Movimientos.Add(movimiento);
+            ctx.Movimientos.Add(movEgreso);
+            origen.SaldoActual -= monto;
 
-            cuenta.SaldoActual -= monto;
+            List<int> movimientosCreados = new();
+            decimal? saldoDestino = null;
 
-            await ctx.SaveChangesAsync();
+            // Si se envio a un usuario interno de la aplicacion, generamos el ingreso receptor.
+            if (cuentaDestinoId.HasValue)
+            {
+                if (cuentaOrigenId == cuentaDestinoId.Value)
+                    throw new InvalidOperationException("La cuenta origen y destino no pueden ser la misma.");
+
+                var destino = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaDestinoId.Value)
+                    ?? throw new InvalidOperationException($"La cuenta destino {cuentaDestinoId} no existe.");
+
+                // Buscamos una categoria de tipo Ingreso en la base para asignar al movimiento receptor.
+                var catIngreso = await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == TipoIngreso && (c.Nombre.Contains("Transferencia") || c.Nombre.Contains("Recibido") || c.Nombre.Contains("Ingreso")))
+                    ?? await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == TipoIngreso)
+                    ?? throw new InvalidOperationException("No se encontro una categoria de tipo Ingreso configurada en la base de datos.");
+
+                var movIngreso = new Movimiento
+                {
+                    CuentaBilleteraId = destino.CuentaBilleteraId,
+                    CategoriaId = catIngreso.CategoriaId,
+                    Fecha = DateTime.Now,
+                    Descripcion = descripcion ?? "Transferencia recibida",
+                    Monto = monto,
+                    Tipo = TipoIngreso
+                };
+                ctx.Movimientos.Add(movIngreso);
+                destino.SaldoActual += monto;
+
+                await ctx.SaveChangesAsync();
+                movimientosCreados.Add(movEgreso.MovimientoId);
+                movimientosCreados.Add(movIngreso.MovimientoId);
+                saldoDestino = destino.SaldoActual;
+            }
+            else
+            {
+                await ctx.SaveChangesAsync();
+                movimientosCreados.Add(movEgreso.MovimientoId);
+            }
+
             await tx.CommitAsync();
-
-            return (movimiento.MovimientoId, cuenta.SaldoActual);
+            return (movimientosCreados, origen.SaldoActual, saldoDestino);
         }
         catch
         {
@@ -142,8 +172,6 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
                 Descripcion = descripcion,
                 Monto = monto,
                 Tipo = TipoEgreso,
-                // Guardamos el QR escaneado en el campo JSON ya existente del modelo (BE-01)
-                // para que quede trazable la operación que originó el pago.
                 MetadataExtranjera = codigoQR is null
                     ? null
                     : System.Text.Json.JsonSerializer.Serialize(new { qr = codigoQR })
@@ -179,9 +207,6 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
             var cuenta = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == mov.CuentaBilleteraId)
                 ?? throw new InvalidOperationException($"La cuenta {mov.CuentaBilleteraId} del movimiento no existe.");
 
-            // Reversión:
-            //   Egreso original  → devolvemos el monto a la cuenta (+monto).
-            //   Ingreso original → sacamos el monto de la cuenta (-monto), pero sólo si hay saldo.
             if (string.Equals(mov.Tipo, TipoEgreso, StringComparison.OrdinalIgnoreCase))
             {
                 cuenta.SaldoActual += mov.Monto;
@@ -210,8 +235,6 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
     private async Task<CuentaBilletera> ObtenerCuentaParaEgresoAsync(int cuentaId, decimal monto)
     {
         var cuenta = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaId)
@@ -227,10 +250,10 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     private async Task ValidarCategoriaAsync(int categoriaId, string tipoEsperado)
     {
         var categoria = await ctx.Categorias.FirstOrDefaultAsync(c => c.CategoriaId == categoriaId)
-            ?? throw new InvalidOperationException($"La categoría {categoriaId} no existe.");
+            ?? throw new InvalidOperationException($"La categoria {categoriaId} no existe.");
 
         if (!string.Equals(categoria.Tipo, tipoEsperado, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
-                $"La categoría '{categoria.Nombre}' es de tipo '{categoria.Tipo}', se esperaba '{tipoEsperado}'.");
+                $"La categoria '{categoria.Nombre}' es de tipo '{categoria.Tipo}', se esperaba '{tipoEsperado}'.");
     }
 }
