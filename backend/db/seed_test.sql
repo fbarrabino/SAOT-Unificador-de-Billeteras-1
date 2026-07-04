@@ -9,6 +9,12 @@
 
    El script asume que el usuario de prueba tiene UsuarioId = 1.
    Si creaste otros usuarios antes, cambiá la variable @UsuarioId abajo.
+
+   ⚠️ ENCODING: este archivo es UTF-8 (tiene acentos: María, Pérez, etc.).
+   - Con SSMS: se lee bien (respeta UTF-8), no hay que hacer nada.
+   - Con sqlcmd: usá el flag -f 65001  →  sqlcmd -f 65001 -S ... -i seed_test.sql
+     Sin ese flag, sqlcmd lo lee como Latin-1 y guarda los acentos corruptos
+     ("Pérez" → "PÃ©rez"), que en la app se ven como letras raras.
    ============================================================================ */
 
 USE BilleterasDB;
@@ -109,7 +115,7 @@ INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, 
 DECLARE @i INT = 1;
 DECLARE @cuentaSel INT, @catSel INT, @tipoTxt NVARCHAR(10);
 DECLARE @esIngreso BIT, @montoGen DECIMAL(18,2), @diasAtras INT;
-DECLARE @rndCuenta INT, @rndCat INT;
+DECLARE @rndCuenta INT, @rndCat INT, @rndDesc INT, @descTxt NVARCHAR(80);
 
 -- Tablas de apoyo para elegir cuenta/categoría al azar por número de fila.
 DECLARE @cuentas TABLE (rn INT IDENTITY(1,1), Id INT);
@@ -117,6 +123,24 @@ INSERT INTO @cuentas (Id) VALUES (@CuentaMP), (@CuentaUA), (@CuentaLM);
 
 DECLARE @catEgreso TABLE (rn INT IDENTITY(1,1), Id INT);
 INSERT INTO @catEgreso (Id) VALUES (@CatAlimentos), (@CatTransporte), (@CatServicios), (@CatOcio), (@CatOtros);
+
+-- Descripciones realistas: comercios/comida/entretenimiento para egresos y
+-- nombres de personas para las transferencias recibidas (ingresos).
+DECLARE @descEgreso TABLE (rn INT IDENTITY(1,1), Txt NVARCHAR(80));
+INSERT INTO @descEgreso (Txt) VALUES
+    (N'Coto'), (N'Carrefour'), (N'Supermercado Día'), (N'Jumbo'),
+    (N'McDonalds'), (N'Mostaza'), (N'Starbucks'), (N'Havanna'),
+    (N'Farmacity'), (N'Nafta YPF'), (N'Carga SUBE'), (N'Uber'),
+    (N'Netflix'), (N'Spotify'), (N'Cine Hoyts'), (N'PedidosYa'),
+    (N'Rappi'), (N'Mercado Libre'), (N'Edenor - Luz'), (N'Movistar'),
+    (N'Kiosco del barrio'), (N'Panadería La Espiga'), (N'Verdulería'), (N'Shell');
+
+DECLARE @descIngreso TABLE (rn INT IDENTITY(1,1), Txt NVARCHAR(80));
+INSERT INTO @descIngreso (Txt) VALUES
+    (N'Transferencia de Juan Pérez'), (N'Transferencia de María González'),
+    (N'Pago de Lucas Fernández'), (N'Transferencia de Sofía Romero'),
+    (N'Sueldo'), (N'Reintegro obra social'), (N'Transferencia de Martín Díaz'),
+    (N'Devolución de Ana López'), (N'Cobro a Diego Suárez'), (N'Transferencia de Valentina Ruiz');
 
 WHILE @i <= 80
 BEGIN
@@ -131,12 +155,18 @@ BEGIN
     SET @diasAtras = ABS(CHECKSUM(NEWID())) % 90;  -- fecha en los últimos 90 días
 
     IF @esIngreso = 1
+    BEGIN
         SELECT @catSel = @CatTransfIn, @tipoTxt = N'Ingreso';
+        SET @rndDesc = (ABS(CHECKSUM(NEWID())) % (SELECT COUNT(*) FROM @descIngreso)) + 1;
+        SET @descTxt = (SELECT Txt FROM @descIngreso WHERE rn = @rndDesc);
+    END
     ELSE
     BEGIN
         SET @rndCat  = (ABS(CHECKSUM(NEWID())) % 5) + 1;
         SET @catSel  = (SELECT Id FROM @catEgreso WHERE rn = @rndCat);
         SET @tipoTxt = N'Egreso';
+        SET @rndDesc = (ABS(CHECKSUM(NEWID())) % (SELECT COUNT(*) FROM @descEgreso)) + 1;
+        SET @descTxt = (SELECT Txt FROM @descEgreso WHERE rn = @rndDesc);
     END
 
     INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, Monto, Tipo)
@@ -144,7 +174,7 @@ BEGIN
         @cuentaSel,
         @catSel,
         DATEADD(DAY, -@diasAtras, GETDATE()),
-        CONCAT(N'Movimiento de prueba #', @i),
+        @descTxt,
         @montoGen,
         @tipoTxt
     );
