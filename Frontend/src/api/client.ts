@@ -13,7 +13,6 @@
 // Para probar desde el celular vía Expo Go necesitamos la IP LAN, no localhost.
 // Cambiar a 'http://localhost:5001' si volvés a desarrollar solo en web.
 export const BASE_URL = 'http://localhost:5001';
-
 // ─── Token en memoria ─────────────────────────────────────────────────────────
 // En producción migrar a expo-secure-store para que persista entre sesiones.
 let _token: string | null = null;
@@ -86,7 +85,7 @@ async function request<T>(
     // El fetch en sí falló: sin internet, backend caído, timeout, CORS, etc.
     const mensaje =
       networkError instanceof TypeError
-        ? 'No se pudo conectar con el servidor. Verificá tu conexión a internet o que el backend esté corriendo en localhost:5001.'
+        ? 'No se pudo conectar con el servidor. Verificá tu conexión a internet o que el backend esté corriendo.'
         : 'Error de red inesperado al contactar el servidor.';
 
     throw new ApiError(0, mensaje, networkError);

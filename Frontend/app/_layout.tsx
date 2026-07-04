@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
 import {
   useFonts as useSpaceGrotesk,
   SpaceGrotesk_600SemiBold,
@@ -18,7 +19,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/theme/tokens';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { WalletsProvider } from '@/context/WalletsContext';
+import { SplashScreen } from '@/components/SplashScreen';
 import { NotifProvider } from '@/context/NotifContext';
+
+// Duración mínima del splash custom para que se sienta intencional
+// (no un flash de un instante) aunque la sesión ya esté resuelta.
+const SPLASH_MIN_MS = 700;
 
 /**
  * Wrapper interno que conecta el estado de autenticación con WalletsProvider.
@@ -26,6 +32,16 @@ import { NotifProvider } from '@/context/NotifContext';
  */
 function AppWithProviders() {
   const { isAuthenticated } = useSession();
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), SPLASH_MIN_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
 
   return (
     // enabled={isAuthenticated} hace que WalletsProvider cargue datos

@@ -9,6 +9,8 @@
  *  - login(email, password): inicia sesión, actualiza estado
  *  - logout(): borra sesión
  *  - clearError(): limpia el error (útil al editar los campos del formulario)
+ *  - actualizarUsuario(usuario): reemplaza el usuario en memoria (D4/FE-Perfil,
+ *    tras un PUT o POST /foto exitoso, sin necesidad de volver a loguearse)
  *
  * Uso:
  *   // En _layout.tsx:
@@ -42,6 +44,7 @@ interface SessionState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  actualizarUsuario: (usuario: UsuarioResponse) => void;
 }
 
 // ─── Contexto ─────────────────────────────────────────────────────────────────
@@ -118,6 +121,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  const actualizarUsuario = useCallback((nuevoUsuario: UsuarioResponse) => {
+    setUsuario(nuevoUsuario);
+  }, []);
+
   return (
     <SessionContext.Provider
       value={{
@@ -128,6 +135,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         clearError,
+        actualizarUsuario,
       }}
     >
       {children}
