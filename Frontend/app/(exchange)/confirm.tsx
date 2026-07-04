@@ -129,8 +129,7 @@ export default function ExchangeConfirm() {
               }
             />
             <Row label="Monto" right={<Text style={styles.value}>{fmt(n)}</Text>} />
-            <Row label="Tasa" right={<Text style={styles.value}>1.00</Text>} />
-            <Row label="Comisión" right={<Text style={styles.value}>{fmt(f)}</Text>} />
+            <Row label="Comisión" right={<Text style={[styles.value, { color: colors.green }]}>Sin comisión</Text>} />
             <Row label="Llega" right={<Text style={styles.value}>Al instante</Text>} last />
           </View>
         </ScrollView>
