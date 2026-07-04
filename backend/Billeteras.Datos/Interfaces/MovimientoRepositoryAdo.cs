@@ -93,6 +93,68 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // ─── Paginado + filtrado REAL en la base (rúbrica 3.4 y 3.5) ─────────────────
+    public async Task<(List<Movimiento> Items, int TotalCount)> ObtenerPaginadoPorUsuarioAsync(
+        int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
+    {
+        // WHERE dinámico pero SIEMPRE parametrizado: nunca concatenamos los
+        // valores del usuario dentro del SQL → inmune a SQL injection (rúbrica 5.3).
+        var where = new System.Text.StringBuilder(" WHERE c.UsuarioId = @usuarioId");
+        if (!string.IsNullOrWhiteSpace(tipo))
+            where.Append(" AND m.Tipo = @tipo");
+        if (!string.IsNullOrWhiteSpace(texto))
+            where.Append(" AND (m.Descripcion LIKE @texto OR cat.Nombre LIKE @texto)");
+        var whereSql = where.ToString();
+
+        // Consulta de la página: OFFSET/FETCH es el paginado nativo de SQL Server.
+        var itemsSql = SelectBase + whereSql +
+            " ORDER BY m.Fecha DESC, m.MovimientoId DESC" +
+            " OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;";
+
+        // Consulta del total (mismos filtros, sin paginar) para calcular páginas.
+        var countSql = @"SELECT COUNT(*)
+                         FROM Movimiento m
+                         INNER JOIN Categoria cat ON cat.CategoriaId = m.CategoriaId
+                         INNER JOIN CuentaBilletera c ON c.CuentaBilleteraId = m.CuentaBilleteraId"
+                         + whereSql + ";";
+
+        using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        // 1) Total de coincidencias
+        int total;
+        using (var countCmd = new SqlCommand(countSql, conn))
+        {
+            AgregarParametrosFiltro(countCmd, usuarioId, tipo, texto);
+            total = (int)(await countCmd.ExecuteScalarAsync())!;
+        }
+
+        // 2) Filas de la página pedida
+        var lista = new List<Movimiento>();
+        using (var cmd = new SqlCommand(itemsSql, conn))
+        {
+            AgregarParametrosFiltro(cmd, usuarioId, tipo, texto);
+            cmd.Parameters.AddWithValue("@offset", (pageNumber - 1) * pageSize);
+            cmd.Parameters.AddWithValue("@pageSize", pageSize);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                lista.Add(Map(reader));
+        }
+
+        return (lista, total);
+    }
+
+    /// Carga los parámetros comunes de filtro en un SqlCommand. El texto va con
+    /// comodines %...% para el LIKE. Se llama tanto en el COUNT como en el SELECT.
+    private static void AgregarParametrosFiltro(SqlCommand cmd, int usuarioId, string? tipo, string? texto)
+    {
+        cmd.Parameters.AddWithValue("@usuarioId", usuarioId);
+        if (!string.IsNullOrWhiteSpace(tipo))
+            cmd.Parameters.AddWithValue("@tipo", tipo);
+        if (!string.IsNullOrWhiteSpace(texto))
+            cmd.Parameters.AddWithValue("@texto", $"%{texto}%");
+    }
+
     private static Movimiento Map(SqlDataReader reader) => new()
     {
         MovimientoId = reader.GetInt32(reader.GetOrdinal("MovimientoId")),

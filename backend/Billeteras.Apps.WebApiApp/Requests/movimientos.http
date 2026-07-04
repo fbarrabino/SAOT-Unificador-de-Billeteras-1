@@ -5,6 +5,16 @@
 GET {{API_URL}}/api/movimientos/me
 Authorization: Bearer {{TOKEN}}
 
+### ✅ MIS movimientos PAGINADOS + FILTRADOS (paginado real en la DB) — requiere token
+# Filtro 1: tipo=Ingreso|Egreso · Filtro 2: texto (busca en descripción y categoría)
+# Paginado: pageNumber (1..N) · pageSize (1..100). Devuelve { items, totalCount, totalPages, hasNext, ... }
+GET {{API_URL}}/api/movimientos/me/paged?tipo=Egreso&texto=super&pageNumber=1&pageSize=20
+Authorization: Bearer {{TOKEN}}
+
+### Página 2 sin filtros (solo paginado)
+GET {{API_URL}}/api/movimientos/me/paged?pageNumber=2&pageSize=20
+Authorization: Bearer {{TOKEN}}
+
 ### Listar todos los movimientos (sin filtro, admin/debug)
 GET {{API_URL}}/api/movimientos
 

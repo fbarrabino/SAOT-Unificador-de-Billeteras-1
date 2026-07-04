@@ -26,8 +26,11 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
 
         var usuario = new Usuario
         {
-            Nombre = req.Nombre,
-            Apellido = req.Apellido,
+            // Saneamos el texto libre (anti-XSS almacenado, 5.3). El email y la
+            // contraseña no se sanean: el email lo valida [EmailAddress] y la
+            // contraseña se hashea con BCrypt (el hash embebe su propio salt).
+            Nombre = Sanitizador.LimpiarTexto(req.Nombre)!,
+            Apellido = Sanitizador.LimpiarTexto(req.Apellido)!,
             Email = req.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
         };
@@ -53,8 +56,8 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
         if (usuario is null)
             return null;
 
-        usuario.Nombre = req.Nombre;
-        usuario.Apellido = req.Apellido;
+        usuario.Nombre = Sanitizador.LimpiarTexto(req.Nombre)!;
+        usuario.Apellido = Sanitizador.LimpiarTexto(req.Apellido)!;
         usuario.Email = req.Email;
         // La contraseña no se actualiza en este TP.
 
@@ -67,6 +70,21 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
     public Task<List<string>> ObtenerNombresRolesAsync(int usuarioId)
         => repo.ObtenerNombresRolesAsync(usuarioId);
 
+    public async Task<ValidarCodigoResult> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNueva)
+    {
+        var usuario = await repo.ObtenerPorIdAsync(usuarioId);
+        if (usuario is null)
+            return new ValidarCodigoResult(false, "Usuario no encontrado.");
+
+        if (!BCrypt.Net.BCrypt.Verify(passwordActual, usuario.PasswordHash))
+            return new ValidarCodigoResult(false, "La contraseña actual es incorrecta.");
+
+        usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordNueva);
+        await repo.ActualizarAsync(usuario);
+
+        return new ValidarCodigoResult(true, "Contraseña actualizada correctamente.");
+    }
+
     private static UsuarioResponse Map(Usuario u)
-        => new(u.UsuarioId, u.Nombre, u.Apellido, u.Email, u.FechaAlta);
+        => new(u.UsuarioId, u.Nombre, u.Apellido, u.Email, u.FechaAlta, u.EmailVerificado);
 }

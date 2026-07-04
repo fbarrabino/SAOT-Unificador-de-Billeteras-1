@@ -1,7 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Billeteras.Datos;
 using Billeteras.Datos.Interfaces;
 using Billeteras.DatosEF;
@@ -53,6 +56,14 @@ builder.Services.AddScoped<ICuentaBilleteraNegocio, CuentaBilleteraNegocio>();
 builder.Services.AddScoped<IMovimientoNegocio, MovimientoNegocio>();
 builder.Services.AddScoped<IContactoRepository, ContactoRepositoryEF>();
 
+// --- Códigos de verificación: reset de contraseña / verificación de email (A3/A4/A8) ---
+builder.Services.AddScoped<ICodigoVerificacionRepository, CodigoVerificacionRepositoryEF>();
+builder.Services.AddScoped<IVerificacionNegocio, VerificacionNegocio>();
+
+// --- Sesiones / dispositivos conectados (D7) ---
+builder.Services.AddScoped<IUsuarioSesionRepository, UsuarioSesionRepositoryEF>();
+builder.Services.AddScoped<ISesionNegocio, SesionNegocio>();
+
 // Autenticación JWT (Key, Issuer, Audience, ExpiresInMinutes desde appsettings.json)
 var jwt = builder.Configuration.GetSection("Jwt");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
@@ -70,10 +81,61 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwt["Audience"],
             IssuerSigningKey = signingKey
         };
+
+        // D7: si la sesión de este token fue revocada ("Cerrar" en Dispositivos
+        // conectados), el token deja de ser válido aunque su firma/expiración
+        // sigan siendo correctas.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var jti = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+                if (jti is null) return;
+
+                var repo = context.HttpContext.RequestServices.GetRequiredService<IUsuarioSesionRepository>();
+                var sesion = await repo.ObtenerPorJtiAsync(jti);
+                if (sesion is not null && !sesion.Activa)
+                    context.Fail("La sesión fue cerrada.");
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
+
+// ─── Swagger / OpenAPI (rúbrica 6.3 — documentación de la API) ────────────────
+// Genera la doc interactiva en /swagger. Con AddSecurityDefinition sumamos el
+// botón "Authorize" para pegar el JWT y probar los endpoints protegidos.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Billeteras API — Unificador de Billeteras (SaOT)",
+        Version = "v1",
+        Description = "API REST del TP Integrador de Programación III (UTN FRRe). "
+                    + "Para probar endpoints protegidos: hacé login en /api/auth/login, "
+                    + "copiá el token y pegalo en el botón Authorize."
+    });
+
+    // Definición del esquema Bearer (Microsoft.OpenApi 2.x → sin Reference inline).
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Pegá SOLO el token JWT (sin escribir 'Bearer ' adelante)."
+    });
+
+    // En Swashbuckle 10 el requirement se arma con una función que recibe el
+    // documento; la referencia al esquema se hace con OpenApiSecuritySchemeReference.
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer", document, null), new List<string>() }
+    });
+});
 
 // CORS abierto (política "AllowAll")
 builder.Services.AddCors(options =>
@@ -104,6 +166,15 @@ catch (Exception ex)
 }
 
 // Pipeline
+
+// Swagger UI disponible en /swagger (lo dejamos siempre activo para la demo/corrección).
+app.UseSwagger();
+app.UseSwaggerUI(o =>
+{
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Billeteras API v1");
+    o.DocumentTitle = "Billeteras API — Swagger";
+});
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("AllowAll");

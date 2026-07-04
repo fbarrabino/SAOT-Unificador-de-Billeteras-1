@@ -30,6 +30,8 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
     public DbSet<TicketAdjunto> TicketsAdjuntos => Set<TicketAdjunto>();
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
     public DbSet<MetodoPagoExterno> MetodosPagoExternos => Set<MetodoPagoExterno>();
+    public DbSet<CodigoVerificacion> CodigosVerificacion => Set<CodigoVerificacion>();
+    public DbSet<UsuarioSesion> UsuariosSesiones => Set<UsuarioSesion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +55,15 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
             // FechaVinculacion: se setea desde C# (DateTime.UtcNow), no se deja a la DB.
             e.Property(c => c.FechaVinculacion)
                 .ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<Movimiento>(e =>
+        {
+            // MISMO CASO que CuentaBilletera: el trigger trg_Auditar_Movimientos hace
+            // que SQL Server rechace el INSERT si EF usa "OUTPUT INSERTED" para leer el
+            // PK IDENTITY (error 334). UseSqlOutputClause(false) → EF usa SCOPE_IDENTITY(),
+            // que sí convive con triggers. Sin esto fallan enviar / cambiar / pagar-qr / anular.
+            e.ToTable("Movimiento", t => t.UseSqlOutputClause(false));
         });
 
         // ==========================================
@@ -135,5 +146,21 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
             .WithMany(m => m.Adjuntos)
             .HasForeignKey(a => a.MensajeId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // ── CodigoVerificacion (A3/A4/A8) ─────────────────────────────────────────
+        // Código → Usuario (NoAction: evita ciclo cascade con Usuario)
+        modelBuilder.Entity<CodigoVerificacion>()
+            .HasOne(c => c.Usuario)
+            .WithMany()
+            .HasForeignKey(c => c.UsuarioId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // ── UsuarioSesion (D7) ─────────────────────────────────────────────────
+        // Sesión → Usuario (NoAction: evita ciclo cascade con Usuario)
+        modelBuilder.Entity<UsuarioSesion>()
+            .HasOne(s => s.Usuario)
+            .WithMany()
+            .HasForeignKey(s => s.UsuarioId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

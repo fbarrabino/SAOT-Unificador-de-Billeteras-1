@@ -21,4 +21,5 @@ public record UsuarioResponse(
     string Nombre,
     string Apellido,
     string Email,
-    DateTime FechaAlta);
+    DateTime FechaAlta,
+    bool EmailVerificado);

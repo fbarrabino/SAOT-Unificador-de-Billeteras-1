@@ -58,6 +58,39 @@ public class MovimientosController(
         }
     }
 
+    /// GET /api/movimientos/me/paged — protegido.
+    /// Listado PAGINADO y FILTRADO del usuario autenticado. Tanto el filtrado
+    /// como el paginado se resuelven EN LA BASE (no en memoria):
+    ///   - tipo=Ingreso|Egreso   (filtro 1, opcional)
+    ///   - texto=...             (filtro 2, opcional: busca en descripción y categoría)
+    ///   - pageNumber=1..N       (default 1)
+    ///   - pageSize=1..100       (default 20)
+    /// Ej: GET /api/movimientos/me/paged?tipo=Egreso&texto=super&pageNumber=1&pageSize=20
+    [HttpGet("me/paged")]
+    [Authorize]
+    public async Task<ActionResult<PagedResult<MovimientoResponse>>> ObtenerMiosPaginado(
+        [FromQuery] string? tipo = null,
+        [FromQuery] string? texto = null,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idClaim, out var usuarioId))
+            return Unauthorized(new { mensaje = "Token inválido: no se pudo obtener el ID de usuario." });
+
+        try
+        {
+            var pagina = await negocio.ObtenerPaginadoPorUsuarioAsync(
+                usuarioId, tipo, texto, pageNumber, pageSize);
+            return Ok(pagina);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Movimientos/me/paged] Error: {ex}");
+            return StatusCode(500, new { mensaje = "Error interno al obtener los movimientos." });
+        }
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<MovimientoResponse>> ObtenerPorId(int id)
     {

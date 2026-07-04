@@ -101,6 +101,57 @@ INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, 
     (@CuentaUA, @CatAlimentos,  DATEADD(DAY, -15, GETDATE()),       N'Carnicería',              3200.00, N'EGRESO'),
     (@CuentaLM, @CatTransporte, DATEADD(DAY, -12, GETDATE()),       N'Nafta YPF',               7500.00, N'EGRESO');
 
+-- ── 3b. Generación masiva de movimientos (para demostrar PAGINADO real) ────────
+-- Insertamos 80 movimientos MÁS, repartidos en las 3 cuentas, con montos y
+-- fechas variados (últimos 90 días). Con esto el listado paginado del front
+-- tiene varias páginas para recorrer (rúbrica 1.4 "datos suficientes para
+-- paginado" y 3.5 "listado paginado real"). ~20% son ingresos, el resto egresos.
+DECLARE @i INT = 1;
+DECLARE @cuentaSel INT, @catSel INT, @tipoTxt NVARCHAR(10);
+DECLARE @esIngreso BIT, @montoGen DECIMAL(18,2), @diasAtras INT;
+DECLARE @rndCuenta INT, @rndCat INT;
+
+-- Tablas de apoyo para elegir cuenta/categoría al azar por número de fila.
+DECLARE @cuentas TABLE (rn INT IDENTITY(1,1), Id INT);
+INSERT INTO @cuentas (Id) VALUES (@CuentaMP), (@CuentaUA), (@CuentaLM);
+
+DECLARE @catEgreso TABLE (rn INT IDENTITY(1,1), Id INT);
+INSERT INTO @catEgreso (Id) VALUES (@CatAlimentos), (@CatTransporte), (@CatServicios), (@CatOcio), (@CatOtros);
+
+WHILE @i <= 80
+BEGIN
+    -- Cuenta al azar (1..3) y "moneda" para decidir ingreso/egreso.
+    -- El índice se calcula a variable ANTES del SELECT: si NEWID() va dentro del
+    -- WHERE se evalúa por fila y puede matchear 0 o varias filas (error 512).
+    -- A variable → la subconsulta devuelve exactamente 1 fila.
+    SET @rndCuenta = (ABS(CHECKSUM(NEWID())) % 3) + 1;
+    SET @cuentaSel = (SELECT Id FROM @cuentas WHERE rn = @rndCuenta);
+    SET @esIngreso = CASE WHEN (ABS(CHECKSUM(NEWID())) % 5) = 0 THEN 1 ELSE 0 END;  -- ~20% ingresos
+    SET @montoGen  = CAST((ABS(CHECKSUM(NEWID())) % 500000) / 100.0 AS DECIMAL(18,2)) + 1.00; -- $1 .. $5000
+    SET @diasAtras = ABS(CHECKSUM(NEWID())) % 90;  -- fecha en los últimos 90 días
+
+    IF @esIngreso = 1
+        SELECT @catSel = @CatTransfIn, @tipoTxt = N'Ingreso';
+    ELSE
+    BEGIN
+        SET @rndCat  = (ABS(CHECKSUM(NEWID())) % 5) + 1;
+        SET @catSel  = (SELECT Id FROM @catEgreso WHERE rn = @rndCat);
+        SET @tipoTxt = N'Egreso';
+    END
+
+    INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, Monto, Tipo)
+    VALUES (
+        @cuentaSel,
+        @catSel,
+        DATEADD(DAY, -@diasAtras, GETDATE()),
+        CONCAT(N'Movimiento de prueba #', @i),
+        @montoGen,
+        @tipoTxt
+    );
+
+    SET @i += 1;
+END
+
 PRINT 'Seed completado. Cuentas y movimientos cargados para UsuarioId = ' + CAST(@UsuarioId AS VARCHAR);
 PRINT 'Cuenta MP  id: ' + CAST(@CuentaMP AS VARCHAR);
 PRINT 'Cuenta UA  id: ' + CAST(@CuentaUA AS VARCHAR);

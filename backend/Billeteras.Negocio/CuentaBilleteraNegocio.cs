@@ -23,7 +23,12 @@ public class CuentaBilleteraNegocio(ICuentaBilleteraRepository repo) : ICuentaBi
             UsuarioId = usuarioId,
             BilleteraId = req.BilleteraId,
             Alias = req.Alias,
-            SaldoActual = req.SaldoInicial
+            SaldoActual = req.SaldoInicial,
+            // IMPORTANTE: EF está configurado con ValueGeneratedNever() para
+            // FechaVinculacion, así que TENEMOS que darle un valor. Sin esto queda
+            // en DateTime.MinValue (0001-01-01) → error "datetime2 fuera de rango".
+            FechaVinculacion = DateTime.Now,
+            Estado = "Activa"   // así aparece en /me (que filtra por Estado == "Activa")
         };
         cuenta.CuentaBilleteraId = await repo.InsertarAsync(cuenta);
         return Map(cuenta);

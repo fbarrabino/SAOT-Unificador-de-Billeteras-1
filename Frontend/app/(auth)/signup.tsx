@@ -6,8 +6,6 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Link } from 'expo-router';
@@ -16,9 +14,10 @@ import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Input } from '@/components/Input';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { colors, fonts, type } from '@/theme/tokens';
+import { colors, fonts, radii, type } from '@/theme/tokens';
 import { register } from '@/api/auth';
 import { ApiError } from '@/api/client';
+import { useSession } from '@/context/SessionContext';
 
 export default function Signup() {
   const [nombre, setNombre] = useState('');
@@ -30,11 +29,15 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { login } = useSession();
+
+  // Limpiamos errores al editar cualquier campo
   const clearErr = () => { if (error) setError(null); };
 
   const handleSignup = async () => {
     setError(null);
 
+    // Validaciones locales
     if (!nombre.trim()) return setError('El nombre es obligatorio.');
     if (!apellido.trim()) return setError('El apellido es obligatorio.');
     if (!email.trim()) return setError('El email es obligatorio.');
@@ -44,13 +47,15 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
+      // 1. Crear la cuenta (el backend ya dispara el código de verificación)
       await register(nombre.trim(), apellido.trim(), email.trim().toLowerCase(), password);
-      // A5 — NO auto-login: mandamos al login con el email precargado para que
-      // entre con sus credenciales reales recién creadas.
-      router.replace({
-        pathname: '/(auth)/login',
-        params: { email: email.trim().toLowerCase(), justRegistered: '1' },
-      });
+      // 2. Login automático para que quede autenticado de una
+      await login(email.trim().toLowerCase(), password);
+      // 3. Navegamos explícitamente (no vía useEffect(isAuthenticated)): esta
+      // pantalla puede seguir montada debajo de /login en el stack, y un
+      // efecto reactivo a isAuthenticated se dispararía en ambas a la vez,
+      // generando una carrera que termina en /(tabs)/home en vez de acá.
+      router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim().toLowerCase() } });
     } catch (err) {
       let mensaje: string;
       if (err instanceof ApiError) {
@@ -64,11 +69,18 @@ export default function Signup() {
           case 409:
             mensaje = 'Ya existe una cuenta con ese email.';
             break;
+          case 500:
+          case 502:
+          case 503:
+            mensaje = 'El servidor tuvo un problema interno. Intentá más tarde.';
+            break;
           default:
             mensaje = err.mensaje || `Error inesperado (${err.status}).`;
         }
+      } else if (err instanceof Error) {
+        mensaje = err.message;
       } else {
-        mensaje = 'Ocurrió un error al registrarse.';
+        mensaje = 'Ocurrió un error desconocido al registrarse.';
       }
       setError(mensaje);
     } finally {
@@ -80,119 +92,114 @@ export default function Signup() {
     <View style={styles.root}>
       <AuroraBackground />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={10}
+        <ScreenHeader title="Crear cuenta" />
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <ScreenHeader title="Crear cuenta" />
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={styles.lead}>Una sola cuenta para todas tus billeteras.</Text>
+          <Text style={styles.lead}>Una sola cuenta para todas tus billeteras.</Text>
 
-            <View style={styles.form}>
-              <Input
-                label="Nombre"
-                placeholder="Tu nombre"
-                autoCapitalize="words"
-                value={nombre}
-                onChangeText={v => { setNombre(v); clearErr(); }}
-                editable={!isLoading}
-              />
-              <Input
-                label="Apellido"
-                placeholder="Tu apellido"
-                autoCapitalize="words"
-                value={apellido}
-                onChangeText={v => { setApellido(v); clearErr(); }}
-                editable={!isLoading}
-              />
-              <Input
-                label="Email"
-                placeholder="tu@email.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                value={email}
-                onChangeText={v => { setEmail(v); clearErr(); }}
-                editable={!isLoading}
-              />
-              <Input
-                label="Contraseña"
-                placeholder="Mínimo 6 caracteres"
-                password
-                value={password}
-                onChangeText={v => { setPassword(v); clearErr(); }}
-                editable={!isLoading}
-              />
-              <Input
-                label="Confirmar contraseña"
-                placeholder="Repetí la contraseña"
-                password
-                value={confirmPassword}
-                onChangeText={v => { setConfirmPassword(v); clearErr(); }}
-                editable={!isLoading}
-              />
-
-              <Pressable
-                style={styles.terms}
-                onPress={() => { setChecked(c => !c); clearErr(); }}
-                disabled={isLoading}
-              >
-                <View style={[styles.checkbox, checked && styles.checkboxOn]}>
-                  {checked ? (
-                    <Svg width={12} height={12} viewBox="0 0 24 24">
-                      <Path
-                        d="M5 12l5 5 9-12"
-                        stroke={colors.ctaText}
-                        strokeWidth={3}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                  ) : null}
-                </View>
-                <Text style={styles.termsText}>
-                  Acepto los <Text style={styles.link}>Términos</Text> y la{' '}
-                  <Text style={styles.link}>Política de Privacidad</Text> de SaOT.
-                </Text>
-              </Pressable>
-
-              {error ? (
-                <View style={styles.errorBanner}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            <PrimaryButton
-              label={isLoading ? '' : 'Crear cuenta'}
-              onPress={handleSignup}
-              style={{ marginTop: 22 }}
-              disabled={isLoading}
+          <View style={styles.form}>
+            <Input
+              label="Nombre"
+              placeholder="Tu nombre"
+              autoCapitalize="words"
+              value={nombre}
+              onChangeText={v => { setNombre(v); clearErr(); }}
+              editable={!isLoading}
+            />
+            <Input
+              label="Apellido"
+              placeholder="Tu apellido"
+              autoCapitalize="words"
+              value={apellido}
+              onChangeText={v => { setApellido(v); clearErr(); }}
+              editable={!isLoading}
+            />
+            <Input
+              label="Email"
+              placeholder="tu@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={email}
+              onChangeText={v => { setEmail(v); clearErr(); }}
+              editable={!isLoading}
+            />
+            <Input
+              label="Contraseña"
+              placeholder="Mínimo 6 caracteres"
+              password
+              value={password}
+              onChangeText={v => { setPassword(v); clearErr(); }}
+              editable={!isLoading}
+            />
+            <Input
+              label="Confirmar contraseña"
+              placeholder="Repetí la contraseña"
+              password
+              value={confirmPassword}
+              onChangeText={v => { setConfirmPassword(v); clearErr(); }}
+              editable={!isLoading}
             />
 
-            {isLoading ? (
-              <View style={styles.loadingOverlay}>
-                <ActivityIndicator color={colors.cyan} size="small" />
-                <Text style={styles.loadingText}>Creando tu cuenta...</Text>
+            <Pressable
+              style={styles.terms}
+              onPress={() => { setChecked(c => !c); clearErr(); }}
+              disabled={isLoading}
+            >
+              <View style={[styles.checkbox, checked && styles.checkboxOn]}>
+                {checked ? (
+                  <Svg width={12} height={12} viewBox="0 0 24 24">
+                    <Path
+                      d="M5 12l5 5 9-12"
+                      stroke={colors.ctaText}
+                      strokeWidth={3}
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                ) : null}
+              </View>
+              <Text style={styles.termsText}>
+                Acepto los <Text style={styles.link}>Términos</Text> y la{' '}
+                <Text style={styles.link}>Política de Privacidad</Text> de SaOT.
+              </Text>
+            </Pressable>
+
+            {/* Banner de error */}
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
+          </View>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerMuted}>¿Ya tenés cuenta? </Text>
-              <Link href="/(auth)/login" asChild>
-                <Pressable disabled={isLoading}>
-                  <Text style={styles.footerLink}>Ingresar</Text>
-                </Pressable>
-              </Link>
+          <PrimaryButton
+            label={isLoading ? '' : 'Crear cuenta'}
+            onPress={handleSignup}
+            style={{ marginTop: 22 }}
+            disabled={isLoading}
+          />
+
+          {isLoading ? (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator color={colors.cyan} size="small" />
+              <Text style={styles.loadingText}>Creando tu cuenta...</Text>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          ) : null}
+
+          <View style={styles.footer}>
+            <Text style={styles.footerMuted}>¿Ya tenés cuenta? </Text>
+            <Link href="/(auth)/login" asChild>
+              <Pressable disabled={isLoading}>
+                <Text style={styles.footerLink}>Ingresar</Text>
+              </Pressable>
+            </Link>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );

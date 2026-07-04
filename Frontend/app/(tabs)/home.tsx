@@ -168,25 +168,25 @@ export default function Home() {
                 <QuickAction
                   icon={<SendIcon />}
                   label="Enviar"
-                  // Fix Franco: Rutas limpias sin paréntesis
-                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/recipient'))}
+                  // Ruta calificada por grupo: hay varias pantallas con el mismo
+                  // nombre (amount) en distintos flujos, así que SIN el grupo
+                  // expo-router las confunde (Pedir y Cambiar caían en la misma).
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/(send)/recipient'))}
                 />
                 <QuickAction
                   icon={<RequestIcon />}
                   label="Pedir"
-                  // Fix Franco: Rutas limpias sin paréntesis
-                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/amount'))}
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/(request)/amount'))}
                 />
                 <QuickAction
                   icon={<SwapIcon />}
                   label="Cambiar"
-                  // Fix Franco: Rutas limpias sin paréntesis
-                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/amount'))}
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/(exchange)/amount'))}
                 />
                 <QuickAction
                   icon={<QRIcon />}
                   label="Pagar QR"
-                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/payqr-scanning'))}
+                  onPress={() => (sinBilleteras ? irAConectar() : router.push('/(payqr)/payqr-scanning'))}
                 />
               </View>
             );
