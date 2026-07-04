@@ -16,6 +16,7 @@ import { WalletGlyph } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type, gradients, shadow } from '@/theme/tokens';
 import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
+import { useNotif } from '@/context/NotifContext';
 import { pagarQr, CATEGORIA_EGRESO_DEFAULT } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
 import { confirmarConBiometria } from '@/utils/biometrics';
@@ -32,6 +33,7 @@ export default function PayQRDetectedScreen() {
     }>();
 
     const { wallets, refresh } = useWallets();
+    const { notify } = useNotif();
     const [submitting, setSubmitting] = useState(false);
 
     const merchant = params.merchant ?? 'Comercio';
@@ -70,6 +72,7 @@ export default function PayQRDetectedScreen() {
                 codigoQR: qr || null,
             });
             await refresh();
+            notify({ emoji: '🧾', title: 'Pago realizado', subtitle: `Pagaste ${fmt(monto)} a ${merchant}` });
             router.replace('/payqr-success');
         } catch (err) {
             const mensaje =

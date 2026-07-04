@@ -18,6 +18,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/theme/tokens';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { WalletsProvider } from '@/context/WalletsContext';
+import { NotifProvider } from '@/context/NotifContext';
 
 /**
  * Wrapper interno que conecta el estado de autenticación con WalletsProvider.
@@ -30,14 +31,16 @@ function AppWithProviders() {
     // enabled={isAuthenticated} hace que WalletsProvider cargue datos
     // solo cuando hay sesión activa y los limpie al desloguearse.
     <WalletsProvider enabled={isAuthenticated}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
-          animation: 'slide_from_right',
-        }}
-      />
+      <NotifProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bg },
+            animation: 'slide_from_right',
+          }}
+        />
+      </NotifProvider>
     </WalletsProvider>
   );
 }

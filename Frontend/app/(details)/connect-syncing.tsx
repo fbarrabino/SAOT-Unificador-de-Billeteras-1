@@ -8,6 +8,7 @@ import type { WalletGlyphKey } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 import { WALLET_CATALOG } from '@/data/wallets';
 import { vincularCuentaBilletera } from '@/api/cuentas';
+import { useNotif } from '@/context/NotifContext';
 
 const SYNC_DURATION_MS = 2200;
 const GLYPH_KEYS: WalletGlyphKey[] = ['mp', 'ua', 'lm', 'bb', 'nx'];
@@ -23,6 +24,8 @@ export default function ConnectSyncingScreen() {
         ? (paramKey as WalletGlyphKey)
         : null;
 
+    const { notify } = useNotif();
+
     useEffect(() => {
         let cancelled = false;
 
@@ -34,6 +37,7 @@ export default function ConnectSyncingScreen() {
             try {
                 // Vinculamos la billetera con el saldo detectado (queda persistido en la API).
                 await vincularCuentaBilletera(walletInfo.dbId, `Mi ${walletInfo.name}`, saldoFicticio);
+                notify({ emoji: '✅', title: 'Billetera conectada', subtitle: `Vinculaste ${walletInfo.name}` });
             } catch (e) {
                 // Si la API no responde, igual avanzamos para no trabar la demo.
                 console.warn('[connect-syncing] No se pudo vincular la cuenta:', e);

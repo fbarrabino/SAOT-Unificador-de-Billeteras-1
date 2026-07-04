@@ -9,6 +9,7 @@ import { WalletGlyph } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
+import { useNotif } from '@/context/NotifContext';
 import { desvincularCuentaBilletera } from '@/api/cuentas';
 import type { WalletKey } from '@/data/wallets';
 
@@ -18,6 +19,7 @@ export default function WalletDetailScreen() {
     // así Ualá usa uaTint (violeta) y Lemon lmTint (lima) sin duplicar componentes.
     const { wallet: walletParam } = useLocalSearchParams<{ wallet?: WalletKey }>();
     const { wallets, activity, refresh } = useWallets();
+    const { notify } = useNotif();
     const [desconectando, setDesconectando] = useState(false);
 
     const walletKey: WalletKey = (walletParam ?? 'mp') as WalletKey;
@@ -57,6 +59,7 @@ export default function WalletDetailScreen() {
                             setDesconectando(true);
                             await desvincularCuentaBilletera(wallet.cuentaId!);
                             await refresh();
+                            notify({ emoji: '🔌', title: 'Billetera desvinculada', subtitle: `Desconectaste ${wallet.name}` });
                             router.replace('/(tabs)/wallets');
                         } catch {
                             Alert.alert('Error', 'No se pudo desconectar la billetera en este momento.');

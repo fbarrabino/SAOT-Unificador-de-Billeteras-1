@@ -17,6 +17,7 @@ import { type WalletKey } from '@/data/wallets';
 import { fmt } from '@/utils/format';
 import { colors, fonts, gradients, radii, shadow } from '@/theme/tokens';
 import { useWallets } from '@/context/WalletsContext';
+import { useNotif } from '@/context/NotifContext';
 import { enviar, CATEGORIA_EGRESO_DEFAULT } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
 import { confirmarConBiometria } from '@/utils/biometrics';
@@ -25,6 +26,7 @@ export default function SendConfirm() {
   const { to, from, amt } = useLocalSearchParams<{ to?: string; from?: WalletKey; amt?: string }>();
   const contact = findContact(to ?? '') ?? findContact('lr')!;
   const { wallets, refresh } = useWallets();
+  const { notify } = useNotif();
   const wallet =
     wallets.find((w) => w.key === ((from as WalletKey) ?? 'mp')) ?? wallets[0];
   const n = Number(amt ?? 0);
@@ -52,6 +54,7 @@ export default function SendConfirm() {
         descripcion: `Envío a ${contact.name}`,
       });
       await refresh();
+      notify({ emoji: '💸', title: 'Envío realizado', subtitle: `Enviaste ${fmt(n)} a ${contact.name}` });
       router.replace({
         pathname: '/(send)/success',
         params: { to: contact.id, from: wallet.key, amt: String(n) },
