@@ -59,11 +59,21 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
         usuario.Nombre = Sanitizador.LimpiarTexto(req.Nombre)!;
         usuario.Apellido = Sanitizador.LimpiarTexto(req.Apellido)!;
         usuario.Email = req.Email;
-        // D1+D3: Pais y Telefono son opcionales, se sanean solo si vienen con valor.
         usuario.Pais = Sanitizador.LimpiarTexto(req.Pais);
         usuario.Telefono = Sanitizador.LimpiarTexto(req.Telefono);
         // La contraseña no se actualiza en este TP.
 
+        await repo.ActualizarAsync(usuario);
+        return Map(usuario);
+    }
+
+    public async Task<UsuarioResponse?> ActualizarFotoAsync(int id, string fotoPerfilUrl)
+    {
+        var usuario = await repo.ObtenerPorIdAsync(id);
+        if (usuario is null)
+            return null;
+
+        usuario.FotoPerfilUrl = fotoPerfilUrl;
         await repo.ActualizarAsync(usuario);
         return Map(usuario);
     }
@@ -89,5 +99,5 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
     }
 
     private static UsuarioResponse Map(Usuario u)
-        => new(u.UsuarioId, u.Nombre, u.Apellido, u.Email, u.FechaAlta, u.EmailVerificado, u.Pais, u.Telefono);
+        => new(u.UsuarioId, u.Nombre, u.Apellido, u.Email, u.FechaAlta, u.EmailVerificado, u.Pais, u.Telefono, u.FotoPerfilUrl);
 }

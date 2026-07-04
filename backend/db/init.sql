@@ -419,3 +419,13 @@ GO
 IF COL_LENGTH(N'dbo.Usuario', N'Telefono') IS NULL
     ALTER TABLE dbo.Usuario ADD Telefono NVARCHAR(30) NULL;
 GO
+-- ===================================================================
+-- BLOQUE B7 (D4) - Foto de perfil, Franco
+-- ===================================================================
+IF COL_LENGTH(N'dbo.Usuario', N'FotoPerfilUrl') IS NULL
+    ALTER TABLE dbo.Usuario ADD FotoPerfilUrl NVARCHAR(500) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Usuario', N'FotoPerfilUrl') IS NULL
+    ALTER TABLE dbo.Usuario ADD FotoPerfilUrl NVARCHAR(500) NULL;
+GO

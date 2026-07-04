@@ -16,6 +16,9 @@ public interface IUsuarioNegocio
     /// Actualiza un usuario. Devuelve null si no existe.
     Task<UsuarioResponse?> ActualizarAsync(int id, UsuarioUpdateRequest req);
 
+    /// D4 — Actualiza solo la ruta de la foto de perfil (el archivo ya se guardó en disco).
+    Task<UsuarioResponse?> ActualizarFotoAsync(int id, string fotoPerfilUrl);
+
     Task<bool> EliminarAsync(int id);
 
     /// BE-11 — Nombres de roles asignados al usuario, para inyectar en el JWT.

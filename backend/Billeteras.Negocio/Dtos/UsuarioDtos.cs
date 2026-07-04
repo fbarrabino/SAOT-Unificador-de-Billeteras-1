@@ -18,6 +18,11 @@ public record UsuarioUpdateRequest(
     [MaxLength(60)] string? Pais,
     [MaxLength(30)] string? Telefono);
 
+/// D4 — Body del POST /api/usuarios/me/foto. Acepta base64 puro o con prefijo
+/// data URI ("data:image/jpeg;base64,...."): el controller limpia el prefijo.
+public record SubirFotoRequest(
+    [Required] string ImagenBase64);
+
 /// Representación de salida de un usuario (nunca expone el PasswordHash).
 public record UsuarioResponse(
     int UsuarioId,
@@ -27,4 +32,5 @@ public record UsuarioResponse(
     DateTime FechaAlta,
     bool EmailVerificado,
     string? Pais,
-    string? Telefono);
+    string? Telefono,
+    string? FotoPerfilUrl);

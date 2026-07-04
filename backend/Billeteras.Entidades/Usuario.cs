@@ -38,4 +38,9 @@ public class Usuario
 
     [MaxLength(30)]
     public string? Telefono { get; set; }
+
+    /// D4 — Ruta relativa del archivo físico en wwwroot (ej: "/uploads/perfiles/7.jpg").
+    /// No se guarda la imagen en la columna: solo la ruta.
+    [MaxLength(500)]
+    public string? FotoPerfilUrl { get; set; }
 }
