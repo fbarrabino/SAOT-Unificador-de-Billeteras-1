@@ -91,6 +91,43 @@ public class OperacionesNegocio(
             SaldoDestinoFinal: saldoDestino);
     }
 
+    public async Task<OperacionResponse> TransferirAsync(TransferirRequest req)
+    {
+        var (egId, inId, saldoOrigen, saldoDestino) = await repo.TransferirAsync(
+            req.CuentaOrigenId,
+            req.CuentaDestinoId,
+            req.CategoriaEgresoId,
+            req.CategoriaIngresoId,
+            req.Monto,
+            req.Descripcion);
+
+        // BD-04 — Espejamos la transferencia entre cuentas en el grafo (mismo patrón que Cambiar).
+        await SafeAsync("Transferir→Neo4j", () => neo4j.ExecuteAsync(@"
+            MATCH (origen:CuentaBilletera  {cuentaBilleteraId: $cuentaOrigenId}),
+                  (destino:CuentaBilletera {cuentaBilleteraId: $cuentaDestinoId})
+            CREATE (origen)-[:TRANSFIRIO {
+                movimientoId: $movimientoId,
+                monto:        $monto,
+                fecha:        datetime($fecha),
+                descripcion:  $descripcion
+            }]->(destino)",
+            new
+            {
+                cuentaOrigenId = req.CuentaOrigenId,
+                cuentaDestinoId = req.CuentaDestinoId,
+                movimientoId = egId,
+                monto = (double)req.Monto,
+                fecha = DateTimeOffset.UtcNow.ToString("o"),
+                descripcion = req.Descripcion ?? string.Empty,
+            }));
+
+        return new OperacionResponse(
+            Operacion: "Transferir",
+            MovimientosCreados: [egId, inId],
+            SaldoOrigenFinal: saldoOrigen,
+            SaldoDestinoFinal: saldoDestino);
+    }
+
     public async Task<OperacionResponse> PagarQrAsync(PagarQrRequest req)
     {
         var (movId, saldo) = await repo.PagarQrAsync(

@@ -120,6 +120,70 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         }
     }
 
+    // ─── Transferir (pago QR a otro usuario) ──────────────────────────────────
+    public async Task<(int movEgresoId, int movIngresoId, decimal saldoOrigenFinal, decimal saldoDestinoFinal)>
+        TransferirAsync(
+            int cuentaOrigenId,
+            int cuentaDestinoId,
+            int categoriaEgresoId,
+            int categoriaIngresoId,
+            decimal monto,
+            string? descripcion)
+    {
+        if (cuentaOrigenId == cuentaDestinoId)
+            throw new InvalidOperationException("La cuenta origen y destino no pueden ser la misma.");
+
+        await using IDbContextTransaction tx = await ctx.Database.BeginTransactionAsync();
+        try
+        {
+            var origen = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
+            var destino = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaDestinoId)
+                ?? throw new InvalidOperationException($"La cuenta destino {cuentaDestinoId} no existe.");
+
+            // NOTA: a diferencia de Cambiar, acá NO exigimos mismo usuario: es una
+            // transferencia de una persona a otra (el que pagó → el que cobró por QR).
+
+            await ValidarCategoriaAsync(categoriaEgresoId, TipoEgreso);
+            await ValidarCategoriaAsync(categoriaIngresoId, TipoIngreso);
+
+            var fecha = DateTime.Now;
+
+            var movEgreso = new Movimiento
+            {
+                CuentaBilleteraId = origen.CuentaBilleteraId,
+                CategoriaId = categoriaEgresoId,
+                Fecha = fecha,
+                Descripcion = descripcion,
+                Monto = monto,
+                Tipo = TipoEgreso
+            };
+            var movIngreso = new Movimiento
+            {
+                CuentaBilleteraId = destino.CuentaBilleteraId,
+                CategoriaId = categoriaIngresoId,
+                Fecha = fecha,
+                Descripcion = descripcion,
+                Monto = monto,
+                Tipo = TipoIngreso
+            };
+            ctx.Movimientos.Add(movEgreso);
+            ctx.Movimientos.Add(movIngreso);
+
+            origen.SaldoActual -= monto;
+            destino.SaldoActual += monto;
+
+            await ctx.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return (movEgreso.MovimientoId, movIngreso.MovimientoId, origen.SaldoActual, destino.SaldoActual);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
     // ─── BE-05 Pagar QR ───────────────────────────────────────────────────────
     public async Task<(int movimientoId, decimal saldoOrigenFinal)> PagarQrAsync(
         int cuentaOrigenId,
