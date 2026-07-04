@@ -56,6 +56,7 @@ export default function RequestQR() {
     const data = {
       tipo: 'pago_saot',
       usuarioId: usuario?.usuarioId ?? null,
+      nombre: usuario ? `${usuario.nombre} ${usuario.apellido}`.trim() : 'Usuario',
       alias: aliasCorto,
       walletKey: wallet?.key ?? null,
       cuentaId: wallet?.cuentaId ?? null,

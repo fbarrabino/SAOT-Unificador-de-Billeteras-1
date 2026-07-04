@@ -24,6 +24,18 @@ public record CambiarRequest(
     [Range(0.01, double.MaxValue)] decimal Monto,
     [MaxLength(250)] string? Descripcion);
 
+// ─── Transferir (pago QR a otro usuario) ──────────────────────────────────────
+// Igual que Cambiar pero SIN la restricción de "mismo usuario": mueve dinero de
+// la cuenta del pagador a la cuenta de OTRO usuario (el que generó el QR de cobro).
+// Crea dos movimientos (egreso en origen + ingreso en destino) en una transacción.
+public record TransferirRequest(
+    [Range(1, int.MaxValue)] int CuentaOrigenId,
+    [Range(1, int.MaxValue)] int CuentaDestinoId,
+    [Range(1, int.MaxValue)] int CategoriaEgresoId,
+    [Range(1, int.MaxValue)] int CategoriaIngresoId,
+    [Range(0.01, double.MaxValue)] decimal Monto,
+    [MaxLength(250)] string? Descripcion);
+
 // ─── Pagar QR (BE-05) ─────────────────────────────────────────────────────────
 // Egreso a un comercio identificado por QR (referencia opcional para auditoría).
 // Si el cliente puede decodificar el QR y mandar ComercioId/RazonSocial/Cuit,

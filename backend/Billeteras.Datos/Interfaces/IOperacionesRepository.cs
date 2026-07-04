@@ -25,6 +25,18 @@ public interface IOperacionesRepository
         decimal monto,
         string? descripcion);
 
+    /// Transferencia entre usuarios DISTINTOS (pago de un QR de cobro). Igual que
+    /// Cambiar pero sin exigir que ambas cuentas sean del mismo usuario.
+    Task<(int movEgresoId, int movIngresoId, decimal saldoOrigenFinal, decimal saldoDestinoFinal)>
+        TransferirAsync(
+            int cuentaOrigenId,
+            int cuentaDestinoId,
+            int categoriaEgresoId,
+            int categoriaIngresoId,
+            decimal monto,
+            string? descripcion);
+
+    /// BE-05 — Egreso a comercio (pago QR).
     Task<(int movimientoId, decimal saldoOrigenFinal)> PagarQrAsync(
         int cuentaOrigenId,
         int categoriaId,

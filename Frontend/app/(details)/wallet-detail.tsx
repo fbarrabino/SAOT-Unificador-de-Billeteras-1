@@ -9,6 +9,7 @@ import { WalletGlyph } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
+import { useNotif } from '@/context/NotifContext';
 import { desvincularCuentaBilletera } from '@/api/cuentas';
 import type { WalletKey } from '@/data/wallets';
 
@@ -18,6 +19,7 @@ export default function WalletDetailScreen() {
     // así Ualá usa uaTint (violeta) y Lemon lmTint (lima) sin duplicar componentes.
     const { wallet: walletParam } = useLocalSearchParams<{ wallet?: WalletKey }>();
     const { wallets, activity, refresh } = useWallets();
+    const { notify } = useNotif();
     const [desconectando, setDesconectando] = useState(false);
 
     const walletKey: WalletKey = (walletParam ?? 'mp') as WalletKey;
@@ -57,6 +59,7 @@ export default function WalletDetailScreen() {
                             setDesconectando(true);
                             await desvincularCuentaBilletera(wallet.cuentaId!);
                             await refresh();
+                            notify({ emoji: '🔌', title: 'Billetera desvinculada', subtitle: `Desconectaste ${wallet.name}` });
                             router.replace('/(tabs)/wallets');
                         } catch {
                             Alert.alert('Error', 'No se pudo desconectar la billetera en este momento.');
@@ -98,6 +101,15 @@ export default function WalletDetailScreen() {
                     </View>
                 </LinearGradient>
 
+                {/* Desvincular arriba (sin tener que scrollear hasta el fondo). */}
+                <Pressable style={styles.disconnectBtn} onPress={handleDesconectar} disabled={desconectando}>
+                    {desconectando ? (
+                        <ActivityIndicator color={colors.red} />
+                    ) : (
+                        <Text style={[type.bodyBold, { color: colors.red }]}>Desvincular billetera</Text>
+                    )}
+                </Pressable>
+
                 <View style={styles.transactionsHeader}>
                     <Text style={type.h4}>Transacciones</Text>
                     <Text style={[type.label, { textAlign: 'right', fontSize: 10 }]}>Esta{'\n'}billetera</Text>
@@ -133,13 +145,6 @@ export default function WalletDetailScreen() {
                     )}
                 </View>
 
-                <Pressable style={styles.disconnectBtn} onPress={handleDesconectar} disabled={desconectando}>
-                    {desconectando ? (
-                        <ActivityIndicator color={colors.red} />
-                    ) : (
-                        <Text style={[type.bodyBold, { color: colors.red }]}>Desconectar billetera</Text>
-                    )}
-                </Pressable>
             </ScrollView>
         </View>
     );
@@ -227,8 +232,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     disconnectBtn: {
-        marginTop: spacing.xxl,
-        padding: 16,
+        marginBottom: spacing.xl,
+        paddingVertical: 13,
         borderRadius: radii.button,
         backgroundColor: 'rgba(239,68,68,0.10)',
         borderWidth: 1,

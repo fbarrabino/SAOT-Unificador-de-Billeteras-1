@@ -39,6 +39,17 @@ public class OperacionesController(
         return await EjecutarAsync(() => negocio.CambiarAsync(req));
     }
 
+    /// Transferencia a OTRO usuario (pago de un QR de cobro generado por alguien
+    /// más). Solo validamos que la cuenta ORIGEN sea del pagador autenticado; la
+    /// destino pertenece a quien generó el QR, así que NO se chequea su ownership.
+    [HttpPost("transferir")]
+    public async Task<ActionResult<OperacionResponse>> Transferir([FromBody] TransferirRequest req)
+    {
+        var owns = await EsCuentaPropiaAsync(req.CuentaOrigenId);
+        if (!owns.Allowed) return owns.Result!;
+        return await EjecutarAsync(() => negocio.TransferirAsync(req));
+    }
+
     [HttpPost("pagar-qr")]
     public async Task<ActionResult<OperacionResponse>> PagarQr([FromBody] PagarQrRequest req)
     {
