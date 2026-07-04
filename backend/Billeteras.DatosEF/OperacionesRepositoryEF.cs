@@ -10,7 +10,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     private const string TipoIngreso = "Ingreso";
     private const string TipoEgreso = "Egreso";
 
-    // ─── BE-03 Enviar (Modificado para Doble Movimiento) ──────────────────────
+    // ─── BE-03 Enviar (Modificado para Doble Movimiento y Fallback de Categoría) ───
     public async Task<(List<int> movimientosIds, decimal saldoOrigenFinal, decimal? saldoDestinoFinal)> EnviarAsync(
         int cuentaOrigenId,
         int? cuentaDestinoId,
@@ -22,7 +22,9 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         try
         {
             var origen = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
-            await ValidarCategoriaAsync(categoriaId, TipoEgreso);
+            
+            // Blindaje: Si la categoría no existe en esta DB, asigna la primera de tipo Egreso automáticamente
+            categoriaId = await ObtenerOValidarCategoriaAsync(categoriaId, TipoEgreso);
 
             var movEgreso = new Movimiento
             {
@@ -39,7 +41,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
             List<int> movimientosCreados = new();
             decimal? saldoDestino = null;
 
-            // Si se envio a un usuario interno de la aplicacion, generamos el ingreso receptor.
+            // Si se envió a un usuario interno de la aplicación, generamos el ingreso receptor.
             if (cuentaDestinoId.HasValue)
             {
                 if (cuentaOrigenId == cuentaDestinoId.Value)
@@ -48,10 +50,10 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
                 var destino = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaDestinoId.Value)
                     ?? throw new InvalidOperationException($"La cuenta destino {cuentaDestinoId} no existe.");
 
-                // Buscamos una categoria de tipo Ingreso en la base para asignar al movimiento receptor.
+                // Buscamos una categoría de tipo Ingreso en la base para asignar al movimiento receptor.
                 var catIngreso = await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == TipoIngreso && (c.Nombre.Contains("Transferencia") || c.Nombre.Contains("Recibido") || c.Nombre.Contains("Ingreso")))
                     ?? await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == TipoIngreso)
-                    ?? throw new InvalidOperationException("No se encontro una categoria de tipo Ingreso configurada en la base de datos.");
+                    ?? throw new InvalidOperationException("No se encontró una categoría de tipo Ingreso configurada en la base de datos.");
 
                 var movIngreso = new Movimiento
                 {
@@ -109,8 +111,8 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
             if (origen.UsuarioId != destino.UsuarioId)
                 throw new InvalidOperationException("Las cuentas origen y destino deben pertenecer al mismo usuario.");
 
-            await ValidarCategoriaAsync(categoriaEgresoId, TipoEgreso);
-            await ValidarCategoriaAsync(categoriaIngresoId, TipoIngreso);
+            categoriaEgresoId = await ObtenerOValidarCategoriaAsync(categoriaEgresoId, TipoEgreso);
+            categoriaIngresoId = await ObtenerOValidarCategoriaAsync(categoriaIngresoId, TipoIngreso);
 
             var fecha = DateTime.Now;
 
@@ -162,7 +164,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         try
         {
             var cuenta = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
-            await ValidarCategoriaAsync(categoriaId, TipoEgreso);
+            categoriaId = await ObtenerOValidarCategoriaAsync(categoriaId, TipoEgreso);
 
             var movimiento = new Movimiento
             {
@@ -247,13 +249,17 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         return cuenta;
     }
 
-    private async Task ValidarCategoriaAsync(int categoriaId, string tipoEsperado)
+    // ─── Helper Defensivo: Valida o hace Fallback de Categoría ─────────────────
+    private async Task<int> ObtenerOValidarCategoriaAsync(int categoriaId, string tipoEsperado)
     {
-        var categoria = await ctx.Categorias.FirstOrDefaultAsync(c => c.CategoriaId == categoriaId)
-            ?? throw new InvalidOperationException($"La categoria {categoriaId} no existe.");
+        var categoria = await ctx.Categorias.FirstOrDefaultAsync(c => c.CategoriaId == categoriaId && c.Tipo == tipoEsperado);
+        if (categoria != null)
+            return categoria.CategoriaId;
 
-        if (!string.Equals(categoria.Tipo, tipoEsperado, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException(
-                $"La categoria '{categoria.Nombre}' es de tipo '{categoria.Tipo}', se esperaba '{tipoEsperado}'.");
+        // Si la categoría pedida no existe (ej. ID 7), buscamos la primera válida de ese tipo en la DB
+        var fallback = await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == tipoEsperado)
+            ?? throw new InvalidOperationException($"No se encontró ninguna categoría de tipo '{tipoEsperado}' en la base de datos.");
+
+        return fallback.CategoriaId;
     }
 }

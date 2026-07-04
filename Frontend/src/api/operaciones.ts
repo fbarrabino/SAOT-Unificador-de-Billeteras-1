@@ -2,9 +2,9 @@
  * operaciones.ts — Cliente de operaciones transaccionales (BE-03/04/05)
  *
  * Endpoints:
- *   POST /api/operaciones/enviar
- *   POST /api/operaciones/cambiar
- *   POST /api/operaciones/pagar-qr
+ * POST /api/operaciones/enviar
+ * POST /api/operaciones/cambiar
+ * POST /api/operaciones/pagar-qr
  *
  * El backend responde 409 Conflict con { mensaje } cuando hay saldo
  * insuficiente, categoría inválida o cuentas inexistentes. El cliente
@@ -33,6 +33,7 @@ export interface EnviarRequest {
   categoriaId: number;
   monto: number;
   descripcion?: string | null;
+  cuentaDestinoId?: number | null; // C1-BE / C1-FE: Inyección de la cuenta destino real
 }
 
 export interface CambiarRequest {

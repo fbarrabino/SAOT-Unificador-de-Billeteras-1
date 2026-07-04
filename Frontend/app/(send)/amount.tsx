@@ -1,7 +1,6 @@
-// Enviar #2 — Monto + selector de billetera origen.
+// Enviar #2 — Monto + selector de billetera origen (Conectado a Backend real y WalletsContext).
 // Patrón compartido con Pedir/Cambiar: chip "Para" arriba + display de monto
 // + selector de wallet + teclado numérico + CTA contextual.
-// Reglas (de saot-demo.js): monto > 0 y monto ≤ saldo de billetera origen.
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,33 +13,72 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { TxHeader } from '@/components/TxHeader';
 import { WalletGlyph } from '@/components/WalletGlyph';
 import { findContact } from '@/data/contacts';
-import { WALLETS, findWallet, type WalletKey } from '@/data/wallets';
+import { WALLETS, type WalletKey } from '@/data/wallets';
 import { amountValue, fmt, fmtCompact } from '@/utils/format';
 import { colors, fonts, radii } from '@/theme/tokens';
+import { useWallets } from '@/context/WalletsContext';
 
 export default function SendAmount() {
-  const params = useLocalSearchParams<{ to?: string }>();
-  const contact = findContact(params.to ?? 'lr') ?? findContact('lr')!;
-  const [from, setFrom] = useState<WalletKey>('mp');
-  const [amt, setAmt] = useState('150'); // valor inicial alineado al mockup
+  const params = useLocalSearchParams<{
+    to?: string;
+    name?: string;
+    initials?: string;
+    color?: string;
+    cuentaDestinoId?: string;
+  }>();
 
-  const fromWallet = findWallet(from);
+  // 1. Reconstruimos el contacto con los datos reales de la API (evita el fallback a Lucía Romero)
+  const staticContact = findContact(params.to ?? '');
+  const contact = staticContact ?? {
+    id: params.to ?? 'custom',
+    name: params.name ?? 'Contacto',
+    handle: params.to ? `@${params.to}` : '@usuario',
+    initials: params.initials ?? '??',
+    color: params.color ?? '#A259FF',
+    cuentaDestinoId: params.cuentaDestinoId ? Number(params.cuentaDestinoId) : undefined
+  };
+
+  // 2. Conectamos con las billeteras reales del usuario en SQL Server
+  const { wallets } = useWallets();
+  const activeWallets = wallets.length > 0 ? wallets : WALLETS;
+
+  // Seleccionamos por defecto la primera billetera activa del usuario
+  const [from, setFrom] = useState<WalletKey>(() => (activeWallets[0]?.key as WalletKey) ?? 'mp');
+
+  // 3. Monto inicial limpio en '0' para una UX financiera real
+  const [amt, setAmt] = useState('0');
+
+  // Buscamos la billetera seleccionada (soportando tanto propiedades del contexto como de mocks)
+  const fromWallet = activeWallets.find(w => w.key === from) ?? activeWallets[0] ?? WALLETS[0];
+  const walletBal = Number((fromWallet as any).bal ?? (fromWallet as any).saldoActual ?? 0);
+  const walletName = (fromWallet as any).name ?? (fromWallet as any).alias ?? 'Billetera';
+
   const n = amountValue(amt);
-  const insufficient = n > fromWallet.bal;
+  const insufficient = n > walletBal;
   const valid = n > 0 && !insufficient;
 
   const ctaLabel =
     n <= 0
       ? 'Elegí un monto'
       : insufficient
-      ? 'Saldo insuficiente'
-      : `Enviar ${fmt(n)}`;
+        ? 'Saldo insuficiente'
+        : `Enviar ${fmt(n)}`;
 
   function next() {
     if (!valid) return;
+
+    // 4. Pasamos TODA la cadena de datos a confirm.tsx para que SQL y Neo4j reciban los IDs exactos
     router.push({
       pathname: '/(send)/confirm',
-      params: { to: contact.id, from, amt: String(n) },
+      params: {
+        to: contact.id,
+        from: fromWallet.key,
+        amt: String(n),
+        name: contact.name,
+        initials: contact.initials,
+        color: contact.color,
+        cuentaDestinoId: contact.cuentaDestinoId ? String(contact.cuentaDestinoId) : ''
+      },
     });
   }
 
@@ -62,7 +100,7 @@ export default function SendAmount() {
           <Text style={styles.amtLabel}>Monto</Text>
           <AmountDisplay text={fmtCompact(n)} size={60} variant="plain" />
           <Text style={styles.availability}>
-            Disponible · <Text style={{ color: colors.text }}>{fmt(fromWallet.bal)}</Text>
+            Disponible · <Text style={{ color: colors.text }}>{fmt(walletBal)}</Text>
           </Text>
 
           <View style={styles.fromRow}>
@@ -70,21 +108,21 @@ export default function SendAmount() {
               <WalletGlyph wallet={from} size={32} />
               <View style={{ marginLeft: 10 }}>
                 <Text style={styles.fromLabel}>Desde</Text>
-                <Text style={styles.fromName}>{fromWallet.name}</Text>
+                <Text style={styles.fromName}>{walletName}</Text>
               </View>
             </View>
 
             <View style={styles.swatch}>
-              {WALLETS.map(w => (
+              {activeWallets.map(w => (
                 <Pressable
                   key={w.key}
-                  onPress={() => setFrom(w.key)}
+                  onPress={() => setFrom(w.key as WalletKey)}
                   style={[
                     styles.swatchDot,
                     from === w.key && styles.swatchDotOn,
                   ]}
                 >
-                  <WalletGlyph wallet={w.key} size={22} />
+                  <WalletGlyph wallet={w.key as WalletKey} size={22} />
                 </Pressable>
               ))}
             </View>
