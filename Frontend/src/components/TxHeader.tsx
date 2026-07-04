@@ -5,7 +5,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import { colors, fonts, radii } from '@/theme/tokens';
+import { colors, fonts } from '@/theme/tokens';
 
 type Props = {
   title?: string;
@@ -54,12 +54,9 @@ const styles = StyleSheet.create({
     height: 48,
   },
   btn: {
+    // Sin recuadro: se ve solo la flecha (área táctil de 38x38).
     width: 38,
     height: 38,
-    borderRadius: radii.icon,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
