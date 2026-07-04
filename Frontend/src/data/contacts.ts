@@ -8,6 +8,9 @@ export type Contact = {
   handle: string;
   initials: string;
   color: string;
+  // Cuenta destino real del backend (para el envío con doble movimiento).
+  // Opcional: los contactos mock no la tienen.
+  cuentaDestinoId?: number;
 };
 
 export const CONTACTS: Contact[] = [

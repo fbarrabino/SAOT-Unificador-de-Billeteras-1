@@ -20,6 +20,7 @@ import { colors } from '@/theme/tokens';
 import { SessionProvider, useSession } from '@/context/SessionContext';
 import { WalletsProvider } from '@/context/WalletsContext';
 import { SplashScreen } from '@/components/SplashScreen';
+import { NotifProvider } from '@/context/NotifContext';
 
 // Duración mínima del splash custom para que se sienta intencional
 // (no un flash de un instante) aunque la sesión ya esté resuelta.
@@ -46,14 +47,16 @@ function AppWithProviders() {
     // enabled={isAuthenticated} hace que WalletsProvider cargue datos
     // solo cuando hay sesión activa y los limpie al desloguearse.
     <WalletsProvider enabled={isAuthenticated}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
-          animation: 'slide_from_right',
-        }}
-      />
+      <NotifProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bg },
+            animation: 'slide_from_right',
+          }}
+        />
+      </NotifProvider>
     </WalletsProvider>
   );
 }
