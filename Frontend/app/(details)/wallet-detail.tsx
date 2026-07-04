@@ -101,6 +101,15 @@ export default function WalletDetailScreen() {
                     </View>
                 </LinearGradient>
 
+                {/* Desvincular arriba (sin tener que scrollear hasta el fondo). */}
+                <Pressable style={styles.disconnectBtn} onPress={handleDesconectar} disabled={desconectando}>
+                    {desconectando ? (
+                        <ActivityIndicator color={colors.red} />
+                    ) : (
+                        <Text style={[type.bodyBold, { color: colors.red }]}>Desvincular billetera</Text>
+                    )}
+                </Pressable>
+
                 <View style={styles.transactionsHeader}>
                     <Text style={type.h4}>Transacciones</Text>
                     <Text style={[type.label, { textAlign: 'right', fontSize: 10 }]}>Esta{'\n'}billetera</Text>
@@ -136,13 +145,6 @@ export default function WalletDetailScreen() {
                     )}
                 </View>
 
-                <Pressable style={styles.disconnectBtn} onPress={handleDesconectar} disabled={desconectando}>
-                    {desconectando ? (
-                        <ActivityIndicator color={colors.red} />
-                    ) : (
-                        <Text style={[type.bodyBold, { color: colors.red }]}>Desconectar billetera</Text>
-                    )}
-                </Pressable>
             </ScrollView>
         </View>
     );
@@ -230,8 +232,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     disconnectBtn: {
-        marginTop: spacing.xxl,
-        padding: 16,
+        marginBottom: spacing.xl,
+        paddingVertical: 13,
         borderRadius: radii.button,
         backgroundColor: 'rgba(239,68,68,0.10)',
         borderWidth: 1,
