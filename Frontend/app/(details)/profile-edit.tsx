@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -39,13 +39,11 @@ export default function ProfileEditScreen() {
                 <ScreenHeader title="Editar perfil" />
             </View>
 
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
-                style={{ flex: 1 }}
             >
 
                 <View style={styles.avatarSection}>
@@ -75,24 +73,23 @@ export default function ProfileEditScreen() {
                     <FormInput label="PAÍS" value={country} onChange={setCountry} editable={false} />
                 </View>
 
-            </ScrollView>
-
-            <View style={styles.footer}>
-                <View style={[shadow.cta, { borderRadius: radii.button }]}>
-                    {/* Al presionar Guardar, vuelve a la pantalla de Perfil simulando éxito */}
-                    <Pressable android_ripple={{ color: 'rgba(0,0,0,0.12)' }} onPress={() => router.back()}>
-                        <LinearGradient
-                            colors={gradients.cyan}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.primaryBtn}
-                        >
-                            <Text style={[type.button, { color: '#06121A' }]}>Guardar cambios</Text>
-                        </LinearGradient>
-                    </Pressable>
+                <View style={styles.footer}>
+                    <View style={[shadow.cta, { borderRadius: radii.button }]}>
+                        {/* Al presionar Guardar, vuelve a la pantalla de Perfil simulando éxito.
+                            El botón va DENTRO del scroll para que no flote sobre el teclado. */}
+                        <Pressable android_ripple={{ color: 'rgba(0,0,0,0.12)' }} onPress={() => router.back()}>
+                            <LinearGradient
+                                colors={gradients.cyan}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.primaryBtn}
+                            >
+                                <Text style={[type.button, { color: '#06121A' }]}>Guardar cambios</Text>
+                            </LinearGradient>
+                        </Pressable>
+                    </View>
                 </View>
-            </View>
-            </KeyboardAvoidingView>
+            </ScrollView>
         </View>
     );
 }
@@ -185,8 +182,7 @@ const styles = StyleSheet.create({
         height: '100%',
     },
     footer: {
-        paddingHorizontal: spacing.lg,
-        paddingBottom: 40,
+        marginTop: spacing.xl,
     },
     primaryBtn: {
         height: 52,

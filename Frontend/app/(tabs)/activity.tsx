@@ -397,10 +397,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 1.2,
-    color: colors.dim,
+    color: colors.muted,
     marginTop: 14,
     marginBottom: 6,
-    backgroundColor: colors.bg,
   },
   row: {
     flexDirection: 'row',

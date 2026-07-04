@@ -1,7 +1,12 @@
-import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Rect, Line, Circle } from 'react-native-svg';
-import { colors, fonts } from '@/theme/tokens';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { colors, fonts, gradients, shadow } from '@/theme/tokens';
+
+// ─── Íconos ───────────────────────────────────────────────────────────────────
 
 function HomeIcon({ color }: { color: string }) {
   return (
@@ -34,54 +39,141 @@ function ProfileIcon({ color }: { color: string }) {
     </Svg>
   );
 }
+function QRIcon({ color }: { color: string }) {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round">
+      <Rect x={3} y={3} width={7} height={7} rx={1} />
+      <Rect x={14} y={3} width={7} height={7} rx={1} />
+      <Rect x={3} y={14} width={7} height={7} rx={1} />
+      <Path d="M14 14h3v3M21 14v3M14 18v3h3M18 21h3" />
+    </Svg>
+  );
+}
+
+const ICONS: Record<string, (p: { color: string }) => React.ReactElement> = {
+  home: HomeIcon,
+  wallets: WalletIcon,
+  activity: ActivityIcon,
+  profile: ProfileIcon,
+};
+const LABELS: Record<string, string> = {
+  home: 'Inicio',
+  wallets: 'Billeteras',
+  activity: 'Actividad',
+  profile: 'Perfil',
+};
+
+// ─── Tab bar personalizada (estilo Mercado Pago: sólida + QR central) ──────────
+
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+
+  function renderTab(index: number) {
+    const route = state.routes[index];
+    const focused = state.index === index;
+    const color = focused ? colors.cyan : colors.dim;
+    const Icon = ICONS[route.name];
+
+    const onPress = () => {
+      const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+      if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+    };
+
+    return (
+      <Pressable
+        key={route.key}
+        style={({ pressed }) => [styles.tab, pressed && { opacity: 0.55 }]}
+        onPress={onPress}
+      >
+        {Icon ? <Icon color={color} /> : null}
+        <Text style={[styles.label, { color }]}>{LABELS[route.name]}</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[styles.bar, { paddingBottom: (insets.bottom || 10) + 6 }]}>
+      {renderTab(0)}
+      {renderTab(1)}
+
+      {/* Botón central QR (elevado, tipo FAB de Mercado Pago) */}
+      <Pressable
+        style={({ pressed }) => [styles.fabSlot, pressed && { transform: [{ scale: 0.92 }] }]}
+        onPress={() => router.push('/(payqr)/payqr-scanning')}
+      >
+        <LinearGradient
+          colors={gradients.cyan}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fab}
+        >
+          <QRIcon color={colors.ctaText} />
+        </LinearGradient>
+        <Text style={styles.fabLabel}>Pagar QR</Text>
+      </Pressable>
+
+      {renderTab(2)}
+      {renderTab(3)}
+    </View>
+  );
+}
 
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: true,
-        sceneStyle: { backgroundColor: colors.bg },
-        tabBarActiveTintColor: colors.cyan,
-        tabBarInactiveTintColor: colors.dim,
-        tabBarLabelStyle: { fontFamily: fonts.bodySemi, fontSize: 10.5 },
-        tabBarStyle: styles.bar,
-        tabBarBackground: () => <View style={styles.bg} />,
-      }}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
+      tabBar={(props) => <CustomTabBar {...props} />}
     >
-      <Tabs.Screen
-        name="home"
-        options={{ title: 'Inicio', tabBarIcon: ({ color }) => <HomeIcon color={color} /> }}
-      />
-      <Tabs.Screen
-        name="wallets"
-        options={{ title: 'Billeteras', tabBarIcon: ({ color }) => <WalletIcon color={color} /> }}
-      />
-      <Tabs.Screen
-        name="activity"
-        options={{ title: 'Actividad', tabBarIcon: ({ color }) => <ActivityIcon color={color} /> }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: 'Perfil', tabBarIcon: ({ color }) => <ProfileIcon color={color} /> }}
-      />
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="wallets" />
+      <Tabs.Screen name="activity" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    position: 'absolute',
-    borderTopColor: colors.hairline,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    // SÓLIDO (sin transparencia). Un dark propio, distinto del negro del fondo.
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    height: 82,
+    borderTopColor: colors.hairline,
     paddingTop: 10,
-    paddingBottom: 22,
-    backgroundColor: 'transparent',
-    elevation: 0,
+    paddingHorizontal: 6,
   },
-  bg: {
+  tab: {
     flex: 1,
-    backgroundColor: 'rgba(8,10,13,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingTop: 2,
+  },
+  label: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 10,
+  },
+  fabSlot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -26, // se eleva por encima de la barra (estilo MP)
+    borderWidth: 4,
+    borderColor: colors.surface,
+    ...shadow.cta,
+  },
+  fabLabel: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 10,
+    color: colors.cyan,
+    marginTop: 4,
   },
 });

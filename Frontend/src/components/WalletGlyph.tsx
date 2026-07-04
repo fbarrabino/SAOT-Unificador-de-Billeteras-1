@@ -22,6 +22,16 @@ const LOGOS_SOBRE_FONDO_CLARO: Record<WalletGlyphKey, boolean> = {
   bb: false,
 };
 
+// Escala del logo dentro del tile. El asset de Ualá tiene más padding interno,
+// así que se veía "hundido/chico" → lo agrandamos para que quede como el de MP.
+const LOGO_SCALE: Record<WalletGlyphKey, number> = {
+  mp: 0.82,
+  ua: 0.98,
+  nx: 0.82,
+  lm: 1,
+  bb: 1,
+};
+
 type Props = {
   wallet: WalletGlyphKey;
   size?: number;
@@ -43,11 +53,7 @@ export function WalletGlyph({ wallet, size = 34 }: Props) {
     >
       <Image
         source={LOGOS[wallet]}
-        style={
-          fondoClaro
-            ? { width: size * 0.82, height: size * 0.82 }
-            : { width: size, height: size }
-        }
+        style={{ width: size * LOGO_SCALE[wallet], height: size * LOGO_SCALE[wallet] }}
         resizeMode="contain"
       />
     </View>
