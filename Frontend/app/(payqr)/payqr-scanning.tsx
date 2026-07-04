@@ -24,10 +24,12 @@ import { colors, radii, spacing, type } from '@/theme/tokens';
 
 type QRPayload = {
   tipo?: string;
+  nombre?: string;
   alias?: string;
   monto?: number | string;
   ref?: string;
   cuentaId?: number;
+  usuarioId?: number;
 };
 
 export default function PayQRScanningScreen() {
@@ -74,17 +76,19 @@ export default function PayQRScanningScreen() {
     }
 
     const esPayloadSaot = parsed?.tipo === 'pago_saot';
+    const nombreDestino = parsed?.nombre ?? parsed?.alias ?? 'Usuario';
     router.push({
       pathname: '/payqr-detected',
       params: {
-        merchant: esPayloadSaot
-          ? `Cobro a ${parsed?.alias ?? 'usuario'}`
-          : 'Comercio externo',
+        // Nombre real de quien generó el QR (no "café en Bs As" ni el alias raro).
+        merchant: esPayloadSaot ? nombreDestino : 'Comercio externo',
         merchantSub: esPayloadSaot
-          ? `Pedido SaOT · ${parsed?.ref ?? '—'}`
+          ? `Pedido de cobro · ${parsed?.ref ?? '—'}`
           : 'QR genérico',
         amount: String(parsed?.monto ?? 0),
         reference: String(parsed?.ref ?? data.slice(0, 24)),
+        // Cuenta del que cobra: si viene, el pago le TRANSFIERE la plata.
+        destinoCuentaId: esPayloadSaot && parsed?.cuentaId ? String(parsed.cuentaId) : '',
         qr: data,
         wallet: 'mp',
       },

@@ -44,6 +44,15 @@ export interface CambiarRequest {
   descripcion?: string | null;
 }
 
+export interface TransferirRequest {
+  cuentaOrigenId: number;
+  cuentaDestinoId: number;
+  categoriaEgresoId: number;
+  categoriaIngresoId: number;
+  monto: number;
+  descripcion?: string | null;
+}
+
 export interface PagarQrRequest {
   cuentaOrigenId: number;
   categoriaId: number;
@@ -59,6 +68,9 @@ export const enviar = (body: EnviarRequest) =>
 
 export const cambiar = (body: CambiarRequest) =>
   api.post<OperacionResponse>('/api/operaciones/cambiar', body);
+
+export const transferir = (body: TransferirRequest) =>
+  api.post<OperacionResponse>('/api/operaciones/transferir', body);
 
 export const pagarQr = (body: PagarQrRequest) =>
   api.post<OperacionResponse>('/api/operaciones/pagar-qr', body);

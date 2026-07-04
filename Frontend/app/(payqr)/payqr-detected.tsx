@@ -17,7 +17,7 @@ import { colors, radii, spacing, type, gradients, shadow } from '@/theme/tokens'
 import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
 import { useNotif } from '@/context/NotifContext';
-import { pagarQr, CATEGORIA_EGRESO_DEFAULT } from '@/api/operaciones';
+import { pagarQr, transferir, CATEGORIA_EGRESO_DEFAULT, CATEGORIA_INGRESO_DEFAULT } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
 import { confirmarConBiometria } from '@/utils/biometrics';
 import type { WalletKey } from '@/data/wallets';
@@ -30,7 +30,11 @@ export default function PayQRDetectedScreen() {
         reference?: string;
         qr?: string;
         wallet?: WalletKey;
+        destinoCuentaId?: string;
     }>();
+
+    // Cuenta de quien generó el QR: si está, el pago es una transferencia real.
+    const destinoCuentaId = params.destinoCuentaId ? Number(params.destinoCuentaId) : null;
 
     const { wallets, refresh } = useWallets();
     const { notify } = useNotif();
@@ -64,15 +68,28 @@ export default function PayQRDetectedScreen() {
 
         setSubmitting(true);
         try {
-            await pagarQr({
-                cuentaOrigenId: cuentaId,
-                categoriaId: CATEGORIA_EGRESO_DEFAULT,
-                monto,
-                descripcion: `Pago QR · ${merchant}`,
-                codigoQR: qr || null,
-            });
+            if (destinoCuentaId) {
+                // Pago a otro usuario de SaOT → transferencia REAL: le llega la plata a su cuenta.
+                await transferir({
+                    cuentaOrigenId: cuentaId,
+                    cuentaDestinoId: destinoCuentaId,
+                    categoriaEgresoId: CATEGORIA_EGRESO_DEFAULT,
+                    categoriaIngresoId: CATEGORIA_INGRESO_DEFAULT,
+                    monto,
+                    descripcion: `Transferencia a ${merchant}`,
+                });
+            } else {
+                // QR externo (comercio) → egreso simple.
+                await pagarQr({
+                    cuentaOrigenId: cuentaId,
+                    categoriaId: CATEGORIA_EGRESO_DEFAULT,
+                    monto,
+                    descripcion: `Pago QR · ${merchant}`,
+                    codigoQR: qr || null,
+                });
+            }
             await refresh();
-            notify({ emoji: '🧾', title: 'Pago realizado', subtitle: `Pagaste ${fmt(monto)} a ${merchant}` });
+            notify({ emoji: '💸', title: 'Pago realizado', subtitle: `Pagaste ${fmt(monto)} a ${merchant}` });
             router.replace('/payqr-success');
         } catch (err) {
             const mensaje =
