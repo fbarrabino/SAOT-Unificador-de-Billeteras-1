@@ -16,8 +16,25 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
     private int UsuarioId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private string Jti => User.FindFirstValue(JwtRegisteredClaimNames.Jti)!;
 
-    // ── D7: Dispositivos conectados ───────────────────────────────────────────
+    // ── B7 (D1+D3): Perfil persistido ─────────────────────────────────────────
+    /// GET /api/usuarios/me — perfil del usuario autenticado.
+    [HttpGet("me")]
+    public async Task<ActionResult<UsuarioResponse>> ObtenerPerfil()
+    {
+        var usuario = await negocio.ObtenerPorIdAsync(UsuarioId);
+        return usuario is null ? NotFound() : Ok(usuario);
+    }
 
+    /// PUT /api/usuarios/me — actualiza Nombre, Apellido, Email, Pais y Telefono
+    /// del usuario autenticado (vía JWT, no requiere pasar el id por ruta).
+    [HttpPut("me")]
+    public async Task<ActionResult<UsuarioResponse>> ActualizarPerfil([FromBody] UsuarioUpdateRequest req)
+    {
+        var actualizado = await negocio.ActualizarAsync(UsuarioId, req);
+        return actualizado is null ? NotFound() : Ok(actualizado);
+    }
+
+    // ── D7: Dispositivos conectados ───────────────────────────────────────────
     /// GET /api/usuarios/me/sesiones — sesiones activas del usuario autenticado.
     [HttpGet("me/sesiones")]
     public async Task<ActionResult<List<SesionResponse>>> ListarSesiones()
@@ -30,12 +47,10 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
         var ok = await sesiones.RevocarSesionAsync(UsuarioId, id);
         if (!ok)
             return NotFound(new { mensaje = "La sesión no existe o no te pertenece." });
-
         return Ok(new { mensaje = "Sesión cerrada correctamente." });
     }
 
     // El alta de usuario se hace por POST /api/auth/register.
-
     [HttpGet]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<List<UsuarioResponse>>> ObtenerTodos()
