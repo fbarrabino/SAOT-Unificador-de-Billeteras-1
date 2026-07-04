@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { WalletGlyph } from '@/components/WalletGlyph';
@@ -21,6 +21,10 @@ import { fmt } from '@/utils/format';
 export default function Wallets() {
   const { wallets, isLoading, refresh } = useWallets();
   const total = wallets.reduce((s, w) => s + w.bal, 0);
+
+  // Refresca al enfocar la tab: así aparece la billetera recién conectada
+  // (y desaparece la desvinculada) sin tener que hacer pull-to-refresh.
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   return (
     <View style={styles.root}>

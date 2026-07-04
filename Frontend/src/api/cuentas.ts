@@ -93,3 +93,12 @@ export async function vincularCuentaBilletera(billeteraId: number, alias: string
   };
   return await api.post<CuentaBilleteraResponse>('/api/cuentas-billetera', req);
 }
+
+/**
+ * DELETE /api/cuentas-billetera/{id}/desvincular
+ * Desvincula (soft-delete) una cuenta del usuario. La billetera vuelve a
+ * quedar "disponible" para reconectar.
+ */
+export async function desvincularCuentaBilletera(cuentaBilleteraId: number): Promise<void> {
+  await api.delete<void>(`/api/cuentas-billetera/${cuentaBilleteraId}/desvincular`);
+}

@@ -7,6 +7,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { WalletGlyph } from '@/components/WalletGlyph';
 import type { WalletGlyphKey } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type } from '@/theme/tokens';
+import { useWallets } from '@/context/WalletsContext';
 
 // B3 — Código de Fabricio: Solo muestra billeteras con logo real en assets.
 type AvailableWallet = {
@@ -18,15 +19,23 @@ type AvailableWallet = {
     short: string;
 };
 
-const AVAILABLE_WALLETS: AvailableWallet[] = [
+// Billeteras con logo real que se pueden conectar. En la pantalla se muestran
+// SOLO las que el usuario todavía no vinculó (así una desconectada reaparece).
+const CONNECTABLE: AvailableWallet[] = [
+    { id: 'mp', glyph: 'mp', name: 'Mercado Pago', desc: 'Billetera virtual · ARG', color: '#009EE3', short: 'MP' },
+    { id: 'ua', glyph: 'ua', name: 'Ualá', desc: 'Billetera virtual · ARG', color: '#FF3366', short: 'UA' },
+    { id: 'lm', glyph: 'lm', name: 'Lemon', desc: 'Cripto & pesos · ARG', color: '#00D18F', short: 'LM' },
     { id: 'bb', glyph: 'bb', name: 'Brubank', desc: 'Banco digital · ARG', color: '#6842FF', short: 'BB' },
     { id: 'nx', glyph: 'nx', name: 'Naranja X', desc: 'Billetera virtual · ARG', color: '#FF5C00', short: 'NX' },
 ];
 
 export default function ConnectListScreen() {
     const [searchQuery, setSearchQuery] = useState('');
+    const { wallets } = useWallets();
+    const connectedKeys = new Set<string>(wallets.map((w) => w.key));
+    const availableWallets = CONNECTABLE.filter((w) => !connectedKeys.has(w.id));
 
-    const filteredWallets = AVAILABLE_WALLETS.filter((wallet) => {
+    const filteredWallets = availableWallets.filter((wallet) => {
         const q = searchQuery.toLowerCase();
         return (
             wallet.name.toLowerCase().includes(q) ||

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -9,6 +9,7 @@ import { WalletGlyph } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
+import { desvincularCuentaBilletera } from '@/api/cuentas';
 import type { WalletKey } from '@/data/wallets';
 
 export default function WalletDetailScreen() {
@@ -16,7 +17,8 @@ export default function WalletDetailScreen() {
     // El gradient, logo y nombre salen del propio Wallet del contexto,
     // así Ualá usa uaTint (violeta) y Lemon lmTint (lima) sin duplicar componentes.
     const { wallet: walletParam } = useLocalSearchParams<{ wallet?: WalletKey }>();
-    const { wallets, activity } = useWallets();
+    const { wallets, activity, refresh } = useWallets();
+    const [desconectando, setDesconectando] = useState(false);
 
     const walletKey: WalletKey = (walletParam ?? 'mp') as WalletKey;
     const wallet = wallets.find((w) => w.key === walletKey) ?? wallets[0];
@@ -36,6 +38,36 @@ export default function WalletDetailScreen() {
     }
 
     const walletTransactions = activity.filter((a) => a.wallet === wallet.key);
+
+    const handleDesconectar = () => {
+        if (!wallet.cuentaId) {
+            Alert.alert('No disponible', 'Esta billetera no tiene una cuenta vinculada en el backend.');
+            return;
+        }
+        Alert.alert(
+            '¿Desconectar billetera?',
+            `Vas a dejar de ver el saldo y los movimientos de ${wallet.name}. Podés volver a vincularla cuando quieras.`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Desconectar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setDesconectando(true);
+                            await desvincularCuentaBilletera(wallet.cuentaId!);
+                            await refresh();
+                            router.replace('/(tabs)/wallets');
+                        } catch {
+                            Alert.alert('Error', 'No se pudo desconectar la billetera en este momento.');
+                        } finally {
+                            setDesconectando(false);
+                        }
+                    },
+                },
+            ],
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -100,6 +132,14 @@ export default function WalletDetailScreen() {
                         ))
                     )}
                 </View>
+
+                <Pressable style={styles.disconnectBtn} onPress={handleDesconectar} disabled={desconectando}>
+                    {desconectando ? (
+                        <ActivityIndicator color={colors.red} />
+                    ) : (
+                        <Text style={[type.bodyBold, { color: colors.red }]}>Desconectar billetera</Text>
+                    )}
+                </Pressable>
             </ScrollView>
         </View>
     );
@@ -185,5 +225,15 @@ const styles = StyleSheet.create({
     },
     txInfo: {
         flex: 1,
+    },
+    disconnectBtn: {
+        marginTop: spacing.xxl,
+        padding: 16,
+        borderRadius: radii.button,
+        backgroundColor: 'rgba(239,68,68,0.10)',
+        borderWidth: 1,
+        borderColor: 'rgba(239,68,68,0.25)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
