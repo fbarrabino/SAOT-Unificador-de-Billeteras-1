@@ -15,6 +15,7 @@ export type Wallet = {
 export const WALLET_CATALOG: Record<string, { dbId: number; name: string; initials: string; color: string }> = {
   "mp": { dbId: 1, name: "Mercado Pago", initials: "MP", color: "#009EE3" },
   "ua": { dbId: 2, name: "Ualá", initials: "UA", color: "#FF3366" },
+  "lm": { dbId: 11, name: "Lemon", initials: "LM", color: "#00D18F" },
   "bb": { dbId: 3, name: "Brubank", initials: "BB", color: "#6842FF" },
   "nx": { dbId: 4, name: "Naranja X", initials: "NX", color: "#FF5E00" },
   "pp": { dbId: 5, name: "Personal Pay", initials: "PP", color: "#00B4E6" },

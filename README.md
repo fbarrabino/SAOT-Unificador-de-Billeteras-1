@@ -226,7 +226,7 @@ Editá **dos archivos** y cambiá estos valores por los tuyos:
 
 ```jsonc
 "ConnectionStrings": {
-  // Cambiá "Server=FRANCO" por el nombre de TU servidor SQL.
+  // Cambiá por el nombre de TU servidor SQL.
   // Si usás SQL Express local, normalmente es: localhost\SQLEXPRESS
   "BilleterasDB": "Server=localhost\\SQLEXPRESS;Database=BilleterasDB;Integrated Security=True;TrustServerCertificate=True;"
 },

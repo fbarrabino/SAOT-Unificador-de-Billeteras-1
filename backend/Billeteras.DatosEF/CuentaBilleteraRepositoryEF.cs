@@ -102,10 +102,9 @@ public class CuentaBilleteraRepositoryEF(BilleterasContext ctx) : ICuentaBillete
             if (cuenta.Estado != "Activa")
                 throw new InvalidOperationException("La cuenta ya se encuentra desvinculada.");
 
-            if (cuenta.SaldoActual != 0)
-                throw new InvalidOperationException(
-                    $"No se puede desvincular la cuenta con saldo pendiente de ${cuenta.SaldoActual:F2}.");
-
+            // Nota: NO bloqueamos por saldo. Desvincular es un soft-delete (dejamos
+            // de mostrar la billetera en el unificador); el dinero sigue existiendo
+            // en la billetera real. El saldo queda guardado por si se reconecta.
             cuenta.Estado = "Desvinculada";
             await ctx.SaveChangesAsync();
             await tx.CommitAsync();

@@ -57,6 +57,15 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
                 .ValueGeneratedNever();
         });
 
+        modelBuilder.Entity<Movimiento>(e =>
+        {
+            // MISMO CASO que CuentaBilletera: el trigger trg_Auditar_Movimientos hace
+            // que SQL Server rechace el INSERT si EF usa "OUTPUT INSERTED" para leer el
+            // PK IDENTITY (error 334). UseSqlOutputClause(false) → EF usa SCOPE_IDENTITY(),
+            // que sí convive con triggers. Sin esto fallan enviar / cambiar / pagar-qr / anular.
+            e.ToTable("Movimiento", t => t.UseSqlOutputClause(false));
+        });
+
         // ==========================================
         // CONFIGURACIÓN DE CLAVES COMPUESTAS (BE-01)
         // EF Core requiere configurar las PK compuestas (relaciones N-N) por Fluent API
