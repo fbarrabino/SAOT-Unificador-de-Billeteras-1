@@ -113,7 +113,8 @@ SELECT Nombre FROM (VALUES
     (N'Reba'),
     (N'Belo'),
     (N'Cuenta DNI'),
-    (N'MODO')
+    (N'MODO'),
+    (N'Lemon')
 ) AS v(Nombre)
 WHERE NOT EXISTS (
     SELECT 1 FROM dbo.Billetera b WHERE b.Nombre = v.Nombre
