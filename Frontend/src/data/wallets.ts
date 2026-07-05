@@ -15,6 +15,7 @@ export type Wallet = {
 export const WALLET_CATALOG: Record<string, { dbId: number; name: string; initials: string; color: string }> = {
   "mp": { dbId: 1, name: "Mercado Pago", initials: "MP", color: "#009EE3" },
   "ua": { dbId: 2, name: "Ualá", initials: "UA", color: "#FF3366" },
+  "lm": { dbId: 10, name: "Lemon", initials: "LM", color: "#00D18F" },
   "bb": { dbId: 3, name: "Brubank", initials: "BB", color: "#6842FF" },
   "nx": { dbId: 4, name: "Naranja X", initials: "NX", color: "#FF5E00" },
   "pp": { dbId: 5, name: "Personal Pay", initials: "PP", color: "#00B4E6" },
@@ -24,11 +25,22 @@ export const WALLET_CATALOG: Record<string, { dbId: number; name: string; initia
   "md": { dbId: 9, name: "MODO", initials: "MD", color: "#2B1A66" }
 };
 
-export const MOCK_WALLETS: Wallet[] = [
-  { key: 'mp', name: 'Mercado Pago', short: 'Mercado Pago', bal: 3200.5, tint: gradients.mpTint },
-  { key: 'ua', name: 'Ualá', short: 'Ualá', bal: 1500.0, tint: gradients.uaTint },
-  { key: 'lm', name: 'Lemon', short: 'Lemon', bal: 7749.75, tint: gradients.lmTint },
-];
+const MOCK_BAL: Record<WalletKey, number> = { mp: 3200.5, ua: 1500.0, lm: 7749.75, bb: 0, nx: 0 };
+const MOCK_TINT: Record<WalletKey, readonly [string, string]> = {
+  mp: gradients.mpTint,
+  ua: gradients.uaTint,
+  lm: gradients.lmTint,
+  bb: gradients.bbTint,
+  nx: gradients.nxTint,
+};
+
+export const MOCK_WALLETS: Wallet[] = (['mp', 'ua', 'lm', 'bb', 'nx'] as WalletKey[]).map((key) => ({
+  key,
+  name: WALLET_CATALOG[key].name,
+  short: WALLET_CATALOG[key].name,
+  bal: MOCK_BAL[key],
+  tint: MOCK_TINT[key],
+}));
 
 export const WALLETS = MOCK_WALLETS;
 
