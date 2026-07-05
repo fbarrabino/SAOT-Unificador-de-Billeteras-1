@@ -8,6 +8,7 @@ type Props = {
   size?: number;
 };
 
+// Ícono de la app: tile redondeado con gradiente lima y el logo OT centrado.
 export function AppIcon({ size = 72 }: Props) {
   const radius = Math.round(size * 0.28);
   return (

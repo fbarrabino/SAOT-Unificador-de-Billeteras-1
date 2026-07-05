@@ -37,6 +37,7 @@ type Props = {
   size?: number;
 };
 
+// Logo circular de una billetera; pone fondo blanco a los logos pensados para fondo claro.
 export function WalletGlyph({ wallet, size = 34 }: Props) {
   const fondoClaro = LOGOS_SOBRE_FONDO_CLARO[wallet];
   return (

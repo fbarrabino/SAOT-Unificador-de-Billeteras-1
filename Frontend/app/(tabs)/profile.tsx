@@ -30,6 +30,8 @@ const ICON_PROPS = (color: string) => ({
   strokeLinejoin: 'round' as const,
 });
 
+// Tab Perfil: tarjeta del usuario y accesos a métodos de pago, notificaciones,
+// seguridad, ayuda/soporte y cierre de sesión.
 export default function Profile() {
   const { usuario } = useSession();
   const { wallets } = useWallets();

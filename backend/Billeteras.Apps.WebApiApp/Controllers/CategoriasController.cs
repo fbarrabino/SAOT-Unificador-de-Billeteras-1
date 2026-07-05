@@ -15,10 +15,12 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 [Authorize]
 public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
 {
+    // GET /api/categorias — lista el catálogo de categorías (cualquier usuario autenticado).
     [HttpGet]
     public async Task<ActionResult<List<CategoriaResponse>>> ObtenerTodos()
         => Ok(await negocio.ObtenerTodosAsync());
 
+    // GET /api/categorias/{id} — una categoría por Id (404 si no existe).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CategoriaResponse>> ObtenerPorId(int id)
     {
@@ -26,6 +28,7 @@ public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
         return categoria is null ? NotFound() : Ok(categoria);
     }
 
+    // POST /api/categorias — crea una categoría (solo Admin).
     [HttpPost]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CategoriaResponse>> Crear([FromBody] CategoriaRequest req)
@@ -34,6 +37,7 @@ public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
         return CreatedAtAction(nameof(ObtenerPorId), new { id = creada.CategoriaId }, creada);
     }
 
+    // PUT /api/categorias/{id} — actualiza una categoría (solo Admin; 404 si no existe).
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CategoriaResponse>> Actualizar(int id, [FromBody] CategoriaRequest req)
@@ -42,6 +46,7 @@ public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
         return actualizada is null ? NotFound() : Ok(actualizada);
     }
 
+    // DELETE /api/categorias/{id} — elimina una categoría (solo Admin; 404 si no existe).
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Eliminar(int id)

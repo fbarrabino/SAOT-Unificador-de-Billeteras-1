@@ -2,11 +2,15 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+// Entidades "extendidas" del dominio agrupadas por módulo (seguridad, contactos,
+// comercios, solicitudes de cobro, soporte, notificaciones y métodos de pago).
+// Cada clase mapea 1:1 a una tabla de la base vía [Table].
 namespace Billeteras.Entidades
 {
     // ==========================================
     // MÓDULO DE SEGURIDAD Y ROLES
     // ==========================================
+    /// Catálogo de roles del sistema (ej. "Admin", "Usuario") para autorización.
     [Table("Rol")]
     public class Rol
     {
@@ -19,6 +23,7 @@ namespace Billeteras.Entidades
         public string? Descripcion { get; set; } // Nullable
     }
 
+    /// Tabla puente N:M que asigna roles a usuarios (clave compuesta Usuario+Rol).
     [Table("UsuarioRol")]
     public class UsuarioRol
     {
@@ -31,6 +36,7 @@ namespace Billeteras.Entidades
     // ==========================================
     // MÓDULO DE RED Y CONTACTOS
     // ==========================================
+    /// Relación de agenda: un usuario (propietario) guarda a otro como contacto.
     [Table("Contacto")]
     public class Contacto
     {
@@ -46,6 +52,7 @@ namespace Billeteras.Entidades
     // ==========================================
     // MÓDULO DE COMERCIOS Y SUCURSALES
     // ==========================================
+    /// Comercio adherido que cobra por QR (identificado por su CUIT).
     [Table("Comercio")]
     public class Comercio
     {
@@ -59,6 +66,7 @@ namespace Billeteras.Entidades
         public string Cuit { get; set; } = string.Empty;
     }
 
+    /// Local físico de un comercio; guarda el QR base con el que se generan los cobros.
     [Table("Sucursal")]
     public class Sucursal
     {
@@ -73,6 +81,7 @@ namespace Billeteras.Entidades
         public string CodigoQRBase { get; set; } = string.Empty;
     }
 
+    /// Tabla puente N:M: qué billeteras acepta cada comercio y con qué comisión.
     [Table("ComercioBilletera")]
     public class ComercioBilletera
     {
@@ -80,12 +89,13 @@ namespace Billeteras.Entidades
         public int ComercioId { get; set; }
         [Key, Column(Order = 1)]
         public int BilleteraId { get; set; }
-        public decimal TasaComision { get; set; }
+        public decimal TasaComision { get; set; } // % de comisión que cobra la billetera al comercio
     }
 
     // ==========================================
     // MÓDULO DE SOLICITUDES DE PAGO/COBRO
     // ==========================================
+    /// MAESTRO de "dividir gastos": un usuario pide plata a otros; agrupa las líneas de detalle.
     [Table("SolicitudCobro")]
     public class SolicitudCobro
     {
@@ -116,6 +126,7 @@ namespace Billeteras.Entidades
         public ICollection<SolicitudCobroDetalle> Lineas { get; set; } = [];
     }
 
+    /// DETALLE de la solicitud: lo que le toca pagar a cada deudor y si ya lo pagó.
     [Table("SolicitudCobroDetalle")]
     public class SolicitudCobroDetalle
     {
@@ -152,6 +163,7 @@ namespace Billeteras.Entidades
     // ==========================================
     // MÓDULO DE SOPORTE TÉCNICO
     // ==========================================
+    /// Catálogo de motivos de reporte/soporte, con un nivel de gravedad asociado.
     [Table("MotivoReporte")]
     public class MotivoReporte
     {
@@ -163,6 +175,7 @@ namespace Billeteras.Entidades
         public int Gravedad { get; set; } = 1;
     }
 
+    /// MAESTRO de soporte: ticket que abre un usuario por un motivo; agrupa sus mensajes.
     [Table("TicketSoporte")]
     public class TicketSoporte
     {
@@ -182,6 +195,7 @@ namespace Billeteras.Entidades
         public ICollection<TicketMensaje> Mensajes { get; set; } = [];
     }
 
+    /// DETALLE del ticket: cada mensaje del hilo (del usuario o de soporte) con sus adjuntos.
     [Table("TicketMensaje")]
     public class TicketMensaje
     {
@@ -199,6 +213,7 @@ namespace Billeteras.Entidades
         public ICollection<TicketAdjunto> Adjuntos { get; set; } = [];
     }
 
+    /// Archivo adjunto (imagen/documento) asociado a un mensaje de un ticket.
     [Table("TicketAdjunto")]
     public class TicketAdjunto
     {
@@ -220,6 +235,7 @@ namespace Billeteras.Entidades
     // ==========================================
     // MÓDULO DE NOTIFICACIONES Y MÉTODOS DE PAGO
     // ==========================================
+    /// Notificación in-app dirigida a un usuario, con flag de leída/no leída.
     [Table("Notificacion")]
     public class Notificacion
     {
@@ -236,6 +252,7 @@ namespace Billeteras.Entidades
         public DateTime FechaEmision { get; set; } = DateTime.Now;
     }
 
+    /// Tarjeta/medio de pago externo del usuario; solo se guardan los últimos 4 dígitos.
     [Table("MetodoPagoExterno")]
     public class MetodoPagoExterno
     {

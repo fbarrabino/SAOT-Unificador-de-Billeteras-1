@@ -5,12 +5,16 @@ using Billeteras.Entidades;
 
 namespace Billeteras.DatosEF;
 
+/// Implementación EF Core de las operaciones transaccionales (enviar, cambiar,
+/// transferir, pagar QR, anular). Cada método corre en una transacción de DB:
+/// inserta movimiento(s) y ajusta saldo(s) de forma atómica (commit/rollback).
 public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesRepository
 {
     private const string TipoIngreso = "Ingreso";
     private const string TipoEgreso = "Egreso";
 
     // ─── BE-03 Enviar (Modificado para Doble Movimiento y Fallback de Categoría) ───
+    // Egreso de la cuenta origen y, si hay destino interno, ingreso espejo al receptor.
     public async Task<(List<int> movimientosIds, decimal saldoOrigenFinal, decimal? saldoDestinoFinal)> EnviarAsync(
         int cuentaOrigenId,
         int? cuentaDestinoId,
@@ -89,6 +93,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── BE-04 Cambiar ────────────────────────────────────────────────────────
+    // Mueve saldo entre DOS cuentas del MISMO usuario (egreso + ingreso espejo).
     public async Task<(int movEgresoId, int movIngresoId, decimal saldoOrigenFinal, decimal saldoDestinoFinal)>
         CambiarAsync(
             int cuentaOrigenId,
@@ -153,6 +158,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── Transferir (pago QR a otro usuario) ──────────────────────────────────
+    // Igual que Cambiar pero entre usuarios DISTINTOS (el que paga → el que cobró por QR).
     public async Task<(int movEgresoId, int movIngresoId, decimal saldoOrigenFinal, decimal saldoDestinoFinal)>
         TransferirAsync(
             int cuentaOrigenId,
@@ -219,6 +225,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── BE-05 Pagar QR ───────────────────────────────────────────────────────
+    // Egreso a comercio por pago de QR; guarda el código QR en MetadataExtranjera (JSON).
     public async Task<(int movimientoId, decimal saldoOrigenFinal)> PagarQrAsync(
         int cuentaOrigenId,
         int categoriaId,
@@ -261,6 +268,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── BE-09 Anular ─────────────────────────────────────────────────────────
+    // Marca el movimiento como anulado y revierte su efecto en el saldo (sin borrarlo).
     public async Task<(int movimientoId, decimal saldoFinal)> AnularAsync(int movimientoId)
     {
         await using IDbContextTransaction tx = await ctx.Database.BeginTransactionAsync();
@@ -303,6 +311,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         }
     }
 
+    // Trae la cuenta y valida que exista y tenga saldo suficiente para el egreso.
     private async Task<CuentaBilletera> ObtenerCuentaParaEgresoAsync(int cuentaId, decimal monto)
     {
         var cuenta = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaId)

@@ -58,6 +58,8 @@ function QRIcon() {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
+// Pantalla de Inicio: balance total unificado, billeteras conectadas, acciones
+// rápidas (enviar/pedir/cambiar/pagar QR) y los últimos movimientos.
 export default function Home() {
   // Datos reales del backend (o mock si el backend no responde)
   const { wallets, activity, isLoading, error, refresh } = useWallets();

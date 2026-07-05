@@ -51,6 +51,8 @@ public record PagarQrRequest(
     [MaxLength(100)] string? RazonSocial = null,
     [MaxLength(20)] string? Cuit = null);
 
+/// Respuesta común de las operaciones: qué operación fue, los movimientos creados
+/// y los saldos finales de origen y (si aplica) destino.
 public record OperacionResponse(
     string Operacion,
     List<int> MovimientosCreados,

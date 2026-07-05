@@ -10,7 +10,7 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 /// actualización de saldo bajo una misma transacción: si algo falla se revierte
 /// todo y se devuelve 409 con el mensaje del negocio.
 ///
-/// BE-11 — Todos los endpoints requieren autenticación y, además, validan que
+/// Todos los endpoints requieren autenticación y, además, validan que
 /// la cuenta origen / movimiento pertenezca al usuario autenticado. Los
 /// usuarios con rol "Admin" saltean el check de ownership.
 [ApiController]
@@ -58,7 +58,7 @@ public class OperacionesController(
         return await EjecutarAsync(() => negocio.PagarQrAsync(req));
     }
 
-    /// BE-09 — Anula un movimiento existente y revierte el saldo en una
+    /// Anula un movimiento existente y revierte el saldo en una
     /// misma transacción. La idempotencia la garantiza el flag Anulado:
     /// un segundo POST devuelve 409 con "ya estaba anulado".
     [HttpPost("{movimientoId:int}/anular")]

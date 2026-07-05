@@ -64,14 +64,18 @@ export interface PagarQrRequest {
 
 // ─── Funciones públicas ───────────────────────────────────────────────────────
 
+// Enviar dinero a otra cuenta (egreso, con ingreso espejo si el destino es interno).
 export const enviar = (body: EnviarRequest) =>
   api.post<OperacionResponse>('/api/operaciones/enviar', body);
 
+// Cambiar saldo entre dos cuentas propias del mismo usuario.
 export const cambiar = (body: CambiarRequest) =>
   api.post<OperacionResponse>('/api/operaciones/cambiar', body);
 
+// Transferir a otro usuario (pago de un QR de cobro generado por alguien más).
 export const transferir = (body: TransferirRequest) =>
   api.post<OperacionResponse>('/api/operaciones/transferir', body);
 
+// Pagar un QR de comercio (egreso desde la cuenta origen).
 export const pagarQr = (body: PagarQrRequest) =>
   api.post<OperacionResponse>('/api/operaciones/pagar-qr', body);

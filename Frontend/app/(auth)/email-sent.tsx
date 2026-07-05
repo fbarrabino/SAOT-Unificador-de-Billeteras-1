@@ -21,6 +21,7 @@ function MailCheck() {
   );
 }
 
+// Pantalla de confirmación "te enviamos el código", con opción de reenviar.
 export default function EmailSent() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const [isResending, setIsResending] = useState(false);

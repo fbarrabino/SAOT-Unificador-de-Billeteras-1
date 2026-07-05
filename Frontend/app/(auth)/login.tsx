@@ -18,6 +18,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { colors, fonts, type } from '@/theme/tokens';
 import { useSession } from '@/context/SessionContext';
 
+// Pantalla de inicio de sesión: email + contraseña, valida contra el backend y guarda el JWT.
 export default function Login() {
   // A5 — venimos del signup con el email precargado y un flag de "recién creada".
   const params = useLocalSearchParams<{ email?: string; justRegistered?: string }>();

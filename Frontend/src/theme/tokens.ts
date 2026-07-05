@@ -1,3 +1,11 @@
+/**
+ * tokens.ts — Design tokens de la app (tema oscuro)
+ *
+ * Fuente única de verdad del estilo visual: colores, gradientes, radios,
+ * espaciados, tipografías y sombras que consumen todas las pantallas.
+ */
+
+// Paleta de colores base (fondos, textos con distintas opacidades y acentos de marca).
 export const colors = {
   bg: '#000000',
   surface: '#0E1116',
@@ -18,6 +26,7 @@ export const colors = {
   ctaText: '#06121A',
 };
 
+// Gradientes reutilizables (CTAs y el "tint" de color de cada billetera).
 export const gradients = {
   cyan: ['#39C3F2', '#6FE0D6'] as const,
   lime: ['#B6F04B', '#6FE0D6'] as const,
@@ -29,6 +38,7 @@ export const gradients = {
   nxTint: ['rgba(255,92,0,0.18)',   'rgba(255,255,255,0.02)'] as const, // Naranja X
 };
 
+// Radios de borde estándar (tarjetas, botones, inputs, pills).
 export const radii = {
   card: 20,
   cardLg: 24,
@@ -38,6 +48,7 @@ export const radii = {
   icon: 14,
 };
 
+// Escala de espaciados (márgenes/paddings) para mantener ritmo visual consistente.
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -48,6 +59,7 @@ export const spacing = {
   screenH: 18,
 };
 
+// Familias tipográficas cargadas (Space Grotesk para títulos, Plus Jakarta para cuerpo).
 export const fonts = {
   display: 'SpaceGrotesk_600SemiBold',
   displayBold: 'SpaceGrotesk_700Bold',
@@ -58,6 +70,7 @@ export const fonts = {
   bodyExtra: 'PlusJakartaSans_800ExtraBold',
 };
 
+// Estilos de texto compuestos (título de pantalla, saldo, encabezados, labels, etc.).
 export const type = {
   screenTitle: { fontFamily: fonts.display, fontSize: 26, letterSpacing: -0.4, color: colors.text },
   display: { fontFamily: fonts.displayBold, fontSize: 28, letterSpacing: -0.5, color: colors.text },
@@ -79,6 +92,7 @@ export const type = {
   small: { fontFamily: fonts.body, fontSize: 12.5, color: colors.muted },
 };
 
+// Sombras reutilizables (glow cian del botón principal).
 export const shadow = {
   cta: {
     shadowColor: '#39C3F2',

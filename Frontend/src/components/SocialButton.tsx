@@ -7,6 +7,7 @@ type Props = {
   onPress?: () => void;
 };
 
+// Botón secundario tipo "login social" (borde tenue, sin gradiente).
 export function SocialButton({ label, onPress }: Props) {
   return (
     <Pressable onPress={onPress} style={styles.btn}>

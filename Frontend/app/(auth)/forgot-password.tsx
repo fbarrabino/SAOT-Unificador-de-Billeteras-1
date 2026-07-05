@@ -22,6 +22,7 @@ function LockIcon() {
   );
 }
 
+// Pantalla "olvidé mi contraseña": pide el email y dispara el envío del código de reset.
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);

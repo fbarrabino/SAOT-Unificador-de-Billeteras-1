@@ -9,15 +9,18 @@ namespace Billeteras.Negocio;
 /// NOTA: crear/editar un movimiento NO modifica el SaldoActual de la cuenta (eso es TP-06).
 public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
 {
+    // Trae todos los movimientos y los mapea a DTO de respuesta.
     public async Task<List<MovimientoResponse>> ObtenerTodosAsync()
         => (await repo.ObtenerTodosAsync()).Select(Map).ToList();
 
+    // Busca un movimiento por Id y lo mapea a DTO (null si no existe).
     public async Task<MovimientoResponse?> ObtenerPorIdAsync(int id)
     {
         var movimiento = await repo.ObtenerPorIdAsync(id);
         return movimiento is null ? null : Map(movimiento);
     }
 
+    // Crea un movimiento (saneando la descripción) y devuelve su DTO.
     public async Task<MovimientoResponse> CrearAsync(MovimientoRequest req)
     {
         var movimiento = new Movimiento
@@ -34,6 +37,7 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
         return Map(movimiento);
     }
 
+    // Actualiza un movimiento existente (saneando la descripción); null si no existe.
     public async Task<MovimientoResponse?> ActualizarAsync(int id, MovimientoRequest req)
     {
         var movimiento = await repo.ObtenerPorIdAsync(id);
@@ -51,16 +55,18 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
         return Map(movimiento);
     }
 
+    // Elimina el movimiento por Id (delega directo al repositorio).
     public Task<bool> EliminarAsync(int id) => repo.EliminarAsync(id);
 
     // ─── Paginado + filtrado (rúbrica 3.4 y 3.5) ────────────────────────────────
+    // Normaliza filtros, aplica límites defensivos y arma el PagedResult para el front.
     public async Task<PagedResult<MovimientoResponse>> ObtenerPaginadoPorUsuarioAsync(
         int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
     {
-        // Límites defensivos: página mínima 1, tamaño entre 1 y 100 (evita que un
+        // Límites defensivos: página mínima 1, tamaño entre 1 y 25 (evita que un
         // cliente pida pageSize=100000 y se traiga toda la tabla).
         pageNumber = pageNumber < 1 ? 1 : pageNumber;
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        pageSize = Math.Clamp(pageSize, 1, 25);
 
         // Normalizamos el filtro para que ande venga como venga del front.
         tipo = NormalizarTipo(tipo);
@@ -86,6 +92,7 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
         };
     }
 
+    // Convierte la entidad Movimiento a su DTO (con nombre de categoría y alias).
     private static MovimientoResponse Map(Movimiento m)
         => new(
             m.MovimientoId,

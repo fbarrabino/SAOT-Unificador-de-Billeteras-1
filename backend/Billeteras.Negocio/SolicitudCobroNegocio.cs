@@ -16,12 +16,14 @@ public class SolicitudCobroNegocio(ISolicitudCobroRepository repo) : ISolicitudC
 {
     // ── Consultas ─────────────────────────────────────────────────────────────
 
+    // Lista las solicitudes del usuario (como quien cobra) en formato resumen.
     public async Task<List<SolicitudCobroResumenResponse>> ObtenerMisAsync(int usuarioSolicitanteId)
     {
         var lista = await repo.ObtenerPorSolicitanteAsync(usuarioSolicitanteId);
         return lista.Select(MapResumen).ToList();
     }
 
+    // Devuelve el detalle completo (cabecera + líneas) de una solicitud (null si no existe).
     public async Task<SolicitudCobroDetalleResponse?> ObtenerDetalleAsync(int solicitudId)
     {
         var solicitud = await repo.ObtenerConLineasAsync(solicitudId);
@@ -30,6 +32,7 @@ public class SolicitudCobroNegocio(ISolicitudCobroRepository repo) : ISolicitudC
 
     // ── Comandos ──────────────────────────────────────────────────────────────
 
+    // Crea la solicitud: calcula el total sumando las líneas y persiste cabecera+líneas en una transacción.
     public async Task<SolicitudCobroDetalleResponse> CrearAsync(int usuarioSolicitanteId, SolicitudCobroRequest req)
     {
         // Calculamos MontoTotal sumando las líneas (el frontend no puede confiarse)
@@ -63,6 +66,7 @@ public class SolicitudCobroNegocio(ISolicitudCobroRepository repo) : ISolicitudC
         return MapDetalle(creada);
     }
 
+    // El deudor paga su línea: valida que no esté pagada, arma el Movimiento y lo registra en una transacción.
     public async Task<int> PagarLineaAsync(int detalleSolicitudId, int cuentaBilleteraDeudorId, int categoriaId)
     {
         var detalle = await repo.ObtenerDetalleAsync(detalleSolicitudId)
@@ -89,6 +93,7 @@ public class SolicitudCobroNegocio(ISolicitudCobroRepository repo) : ISolicitudC
 
     // ── Mappers privados ──────────────────────────────────────────────────────
 
+    // Mapea la solicitud a resumen (incluye conteo de líneas y cuántas están pagadas).
     private static SolicitudCobroResumenResponse MapResumen(SolicitudCobro s)
         => new(
             s.SolicitudId,
@@ -103,6 +108,7 @@ public class SolicitudCobroNegocio(ISolicitudCobroRepository repo) : ISolicitudC
             s.Lineas.Count(l => l.Pagado)
         );
 
+    // Mapea la solicitud a detalle completo (cabecera + todas sus líneas).
     private static SolicitudCobroDetalleResponse MapDetalle(SolicitudCobro s)
         => new(
             s.SolicitudId,
@@ -116,6 +122,7 @@ public class SolicitudCobroNegocio(ISolicitudCobroRepository repo) : ISolicitudC
             s.Lineas.Select(MapLinea).ToList()
         );
 
+    // Mapea una línea de detalle a su DTO (con nombre del deudor y estado de pago).
     private static SolicitudCobroLineaResponse MapLinea(SolicitudCobroDetalle l)
         => new(
             l.DetalleSolicitudId,
