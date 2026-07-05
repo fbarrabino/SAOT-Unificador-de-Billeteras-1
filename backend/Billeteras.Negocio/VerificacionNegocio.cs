@@ -5,12 +5,13 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Negocio;
 
-/// Servicio de códigos de verificación de 6 dígitos. En este TP no hay envío
-/// real de emails: el código se loguea por consola en un banner bien visible
-/// para que se pueda probar el flujo end-to-end sin un proveedor de mail.
+/// Servicio de códigos de verificación de 6 dígitos. El código se envía por
+/// email real (SMTP vía IEmailSender) y además se loguea en un banner de consola
+/// como respaldo para debug / demo si el correo no estuviera configurado.
 public class VerificacionNegocio(
     ICodigoVerificacionRepository repoCodigos,
-    IUsuarioRepository repoUsuarios) : IVerificacionNegocio
+    IUsuarioRepository repoUsuarios,
+    IEmailSender emailSender) : IVerificacionNegocio
 {
     private const int ThrottleSegundos = 60;
     private const int ExpiracionMinutos = 15;
@@ -49,7 +50,9 @@ public class VerificacionNegocio(
         };
         await repoCodigos.InsertarAsync(codigo);
 
+        // Banner de consola (respaldo de debug/demo) + envío real por email.
         LoguearCodigo(usuario.Email, tipo, codigoGenerado);
+        await EnviarCodigoPorEmailAsync(usuario.Email, tipo, codigoGenerado);
 
         return new SolicitarCodigoResult(true, "Si el email existe, te enviamos un código.");
     }
@@ -91,6 +94,38 @@ public class VerificacionNegocio(
         await repoCodigos.MarcarUsadoAsync(vigente.CodigoId);
 
         return new ValidarCodigoResult(true, "Email verificado correctamente.");
+    }
+
+    // Arma el asunto/cuerpo según el tipo y lo manda por email. No lanza:
+    // EmailSender ya captura sus errores y el código queda en el banner.
+    private async Task EnviarCodigoPorEmailAsync(string email, string tipo, string codigo)
+    {
+        var esReset = tipo == TiposCodigoVerificacion.ResetPassword;
+
+        var asunto = esReset
+            ? "SaOT — Código para recuperar tu contraseña"
+            : "SaOT — Código de verificación de tu email";
+
+        var accion = esReset
+            ? "restablecer tu contraseña"
+            : "verificar tu email";
+
+        var cuerpoTexto =
+            $"Tu código para {accion} es: {codigo}\n\n" +
+            $"Vence en {ExpiracionMinutos} minutos. Si no lo solicitaste, ignorá este mensaje.";
+
+        var cuerpoHtml =
+            $"""
+            <div style="font-family:Segoe UI,Arial,sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #eee;border-radius:12px">
+              <h2 style="margin:0 0 8px">SaOT · Unificador de Billeteras</h2>
+              <p style="color:#444">Usá este código para {accion}:</p>
+              <p style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;
+                        background:#f4f4f8;border-radius:8px;padding:16px 0;margin:16px 0">{codigo}</p>
+              <p style="color:#888;font-size:13px">Vence en {ExpiracionMinutos} minutos. Si no lo solicitaste, ignorá este mensaje.</p>
+            </div>
+            """;
+
+        await emailSender.EnviarAsync(email, asunto, cuerpoHtml, cuerpoTexto);
     }
 
     // Genera un código aleatorio de 6 dígitos (con ceros a la izquierda).

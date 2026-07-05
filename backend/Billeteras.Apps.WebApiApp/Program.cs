@@ -59,6 +59,8 @@ builder.Services.AddScoped<IContactoRepository, ContactoRepositoryEF>();
 // --- Códigos de verificación: reset de contraseña / verificación de email (A3/A4/A8) ---
 builder.Services.AddScoped<ICodigoVerificacionRepository, CodigoVerificacionRepositoryEF>();
 builder.Services.AddScoped<IVerificacionNegocio, VerificacionNegocio>();
+// Envío real de los códigos por email (SMTP / MailKit). Config en sección "Email".
+builder.Services.AddScoped<IEmailSender, EmailSender>();
 
 // --- Sesiones / dispositivos conectados (D7) ---
 builder.Services.AddScoped<IUsuarioSesionRepository, UsuarioSesionRepositoryEF>();
