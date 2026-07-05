@@ -1,3 +1,4 @@
+// Billetera — pantalla de configuración de una cuenta vinculada (alias, toggles, desvincular).
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,3 +1,4 @@
+// Perfil — pantalla de ajustes de seguridad (Face ID, PIN, 2FA, pagos biométricos).
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';

@@ -1,3 +1,4 @@
+// Vincular billetera — pantalla de sincronización (loader) que finaliza la vinculación.
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';

@@ -1,3 +1,4 @@
+// Perfil — pantalla que lista las billeteras/métodos de pago del usuario.
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

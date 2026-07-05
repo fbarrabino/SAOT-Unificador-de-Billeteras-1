@@ -1,3 +1,4 @@
+// Billetera — pantalla de detalle de una cuenta vinculada (saldo, movimientos, desvincular).
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
