@@ -359,8 +359,8 @@ SAOT-Unificador-de-Billeteras-1/
 
 ## Roadmap (trabajos prácticos del cuatrimestre)
 
-| TP    | Descripción                                                    | Estado      |
-|-------|----------------------------------------------------------------|-------------|
+| TP    | Descripción                                                    | Estado        |
+|-------|----------------------------------------------------------------|-------------  |
 | TP-01 | Definición del dominio y prototipo de interfaz                 | ✅ Hecho     |
 | TP-02 | Configuración del backend y autenticación                      | ✅ Hecho     |
 | TP-03 | Integración Frontend–Backend                                   | ✅ Hecho     |
@@ -369,7 +369,7 @@ SAOT-Unificador-de-Billeteras-1/
 | TP-06 | Operaciones maestro‑detalle y transacciones                    | ✅ Hecho     |
 | TP-07 | Flujos operativos complejos y control de estados               | ✅ Hecho     |
 | TP-08 | Seguridad y control de acceso                                  | ✅ Hecho     |
-| TP-09 | Consultas avanzadas, filtros y reportes (incluye Neo4j BD‑04)  | 🔄 En curso |
-| TP-10 | Documentación técnica de la API y pruebas                      | 🔄 En curso |
-| TP-11 | Mejora de UX y optimización                                    | Pendiente   |
-| TP-12 | Presentación preliminar (pre‑entrega)                          | Pendiente   |
+| TP-09 | Consultas avanzadas, filtros y reportes (incluye Neo4j BD‑04)  | ✅ Hecho     |
+| TP-10 | Documentación técnica de la API y pruebas                      | ✅ Hecho     |
+| TP-11 | Mejora de UX y optimización                                    | ✅ Hecho     |
+| TP-12 | Presentación preliminar (pre‑entrega)                          | ✅ Hecho     |
