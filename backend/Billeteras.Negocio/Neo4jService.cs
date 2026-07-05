@@ -10,6 +10,7 @@ public class Neo4jService : INeo4jService, IAsyncDisposable
 {
     private readonly IDriver _driver;
 
+    // Lee la config de Neo4j y crea el driver compartido (una sola vez, como Singleton).
     public Neo4jService(IConfiguration config)
     {
         var s = config.GetSection("Neo4j");
@@ -29,6 +30,7 @@ public class Neo4jService : INeo4jService, IAsyncDisposable
         await cursor.ConsumeAsync();
     }
 
+    // Ejecuta un Cypher de lectura y devuelve todos los registros como lista.
     public async Task<List<IRecord>> QueryAsync(string cypher, object? parameters = null)
     {
         await using var session = _driver.AsyncSession();

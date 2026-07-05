@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Link, useLocalSearchParams } from 'expo-router';
@@ -13,10 +15,10 @@ import { AuroraBackground } from '@/components/AuroraBackground';
 import { AppIcon } from '@/components/AppIcon';
 import { Input } from '@/components/Input';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { SocialButton } from '@/components/SocialButton';
 import { colors, fonts, type } from '@/theme/tokens';
 import { useSession } from '@/context/SessionContext';
 
+// Pantalla de inicio de sesión: email + contraseña, valida contra el backend y guarda el JWT.
 export default function Login() {
   // A5 — venimos del signup con el email precargado y un flag de "recién creada".
   const params = useLocalSearchParams<{ email?: string; justRegistered?: string }>();
@@ -55,10 +57,15 @@ export default function Login() {
     <View style={styles.root}>
       <AuroraBackground />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={styles.iconWrap}>
             <AppIcon size={72} />
@@ -124,18 +131,6 @@ export default function Login() {
                 <Text style={styles.loadingText}>Verificando credenciales...</Text>
               </View>
             ) : null}
-
-            <View style={styles.divider}>
-              <View style={styles.line} />
-              <Text style={styles.dividerText}>O CONTINUAR CON</Text>
-              <View style={styles.line} />
-            </View>
-
-            <View style={styles.socials}>
-              <SocialButton label="Apple" />
-              <SocialButton label="Google" />
-              <SocialButton label="Face ID" />
-            </View>
           </View>
 
           <View style={styles.footer}>
@@ -147,6 +142,7 @@ export default function Login() {
             </Link>
           </View>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -224,16 +220,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 26,
-    marginBottom: 16,
-    gap: 12,
-  },
-  line: { flex: 1, height: 1, backgroundColor: colors.hairline },
-  dividerText: { ...type.label, color: colors.dim, fontSize: 10.5 },
-  socials: { flexDirection: 'row', gap: 10 },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 32 },
   footerMuted: { fontFamily: fonts.body, fontSize: 13.5, color: colors.muted },
   footerLink: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.cyan },

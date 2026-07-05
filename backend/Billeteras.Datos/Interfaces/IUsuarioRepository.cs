@@ -6,12 +6,12 @@ namespace Billeteras.Datos.Interfaces;
 /// (Billeteras.Datos) como la versión EF Core (Billeteras.DatosEF).
 public interface IUsuarioRepository
 {
-    Task<List<Usuario>> ObtenerTodosAsync();
-    Task<Usuario?> ObtenerPorIdAsync(int id);
-    Task<Usuario?> ObtenerPorEmailAsync(string email);
-    Task<int> InsertarAsync(Usuario entidad);
-    Task<bool> ActualizarAsync(Usuario entidad);
-    Task<bool> EliminarAsync(int id);
+    Task<List<Usuario>> ObtenerTodosAsync();             // Lista todos los usuarios.
+    Task<Usuario?> ObtenerPorIdAsync(int id);            // Busca un usuario por Id (null si no existe).
+    Task<Usuario?> ObtenerPorEmailAsync(string email);   // Busca un usuario por email (para el login).
+    Task<int> InsertarAsync(Usuario entidad);            // Inserta un usuario y devuelve el Id generado.
+    Task<bool> ActualizarAsync(Usuario entidad);         // Actualiza un usuario; true si modificó filas.
+    Task<bool> EliminarAsync(int id);                    // Elimina el usuario por Id; true si borró.
 
     /// BE-11 — Devuelve los nombres de los roles asignados al usuario
     /// (UsuarioRol JOIN Rol). Lista vacía si el usuario no tiene roles

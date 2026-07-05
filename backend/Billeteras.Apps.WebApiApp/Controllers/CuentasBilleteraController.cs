@@ -6,6 +6,8 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// API REST de las cuentas de billetera del usuario (vincular/desvincular billeteras).
+// Todo autenticado; cada acción valida ownership por el UsuarioId del token.
 [ApiController]
 [Route("api/cuentas-billetera")]
 [Authorize]
@@ -38,6 +40,7 @@ public class CuentasBilleteraController(ICuentaBilleteraNegocio negocio) : Contr
         }
     }
 
+    // GET /api/cuentas-billetera/{id} — una cuenta por Id (solo su dueño o un Admin).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CuentaBilleteraResponse>> ObtenerPorId(int id)
     {
@@ -53,6 +56,7 @@ public class CuentasBilleteraController(ICuentaBilleteraNegocio negocio) : Contr
         return Ok(cuenta);
     }
 
+    // POST /api/cuentas-billetera — crea una cuenta para el usuario del token.
     [HttpPost]
     public async Task<ActionResult<CuentaBilleteraResponse>> Crear([FromBody] CrearCuentaBilleteraRequest req)
     {
@@ -64,6 +68,7 @@ public class CuentasBilleteraController(ICuentaBilleteraNegocio negocio) : Contr
         return CreatedAtAction(nameof(ObtenerPorId), new { id = creada.CuentaBilleteraId }, creada);
     }
 
+    // PUT /api/cuentas-billetera/{id} — actualiza una cuenta (404 si no existe).
     [HttpPut("{id:int}")]
     public async Task<ActionResult<CuentaBilleteraResponse>> Actualizar(int id, [FromBody] CuentaBilleteraRequest req)
     {
@@ -71,6 +76,7 @@ public class CuentasBilleteraController(ICuentaBilleteraNegocio negocio) : Contr
         return actualizada is null ? NotFound() : Ok(actualizada);
     }
 
+    // DELETE /api/cuentas-billetera/{id} — elimina una cuenta (solo Admin; 404 si no existe).
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Eliminar(int id)

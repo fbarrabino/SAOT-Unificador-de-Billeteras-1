@@ -199,11 +199,22 @@ Instalá (una sola vez):
 
 1. Abrí **SSMS** y conectate a tu instancia (`localhost\SQLEXPRESS`, Windows Auth, marcá
    *Trust server certificate*).
-2. Menú **File → Open → File…** y abrí
-   `backend/db/init.sql`.
-3. Apretá **Execute (F5)**. Crea la base `BilleterasDB`, las 20 tablas, los seeds (billeteras,
-   categorías, roles, motivos de soporte) y los triggers de auditoría. El script es idempotente:
-   si lo corrés de nuevo no rompe nada.
+2. Ejecutá los scripts de `backend/db/` **en este orden** (File → Open → File… → Execute con **F5**).
+   Los tres son **idempotentes**: se pueden correr de nuevo sin romper nada.
+
+   1. **`init.sql`** — crea la base `BilleterasDB`, las 20 tablas, los seeds de catálogo
+      (billeteras, categorías, roles, motivos de soporte) y los triggers de auditoría.
+   2. **`alteraciones_solicitud_cobro.sql`** — agrega las columnas del módulo maestro‑detalle de
+      cobros (`SolicitudCobro.Descripcion`/`FechaCreacion` y `SolicitudCobroDetalle.Concepto`/`MovimientoId`).
+      ⚠️ **Obligatorio**: sin esto falla el módulo de solicitudes de cobro y también `seed_test.sql`
+      (su limpieza referencia `MovimientoId`).
+   3. **`seed_test.sql`** *(opcional, datos de prueba)* — carga billeteras con saldo + ~95
+      movimientos para un usuario, ideal para demostrar el listado paginado y los filtros. Editá la
+      variable `@UsuarioId` del principio si tu usuario no es el primero registrado.
+
+> Si venís de una base creada con una versión vieja del modelo, volvé a correr `init.sql` y
+> `alteraciones_solicitud_cobro.sql`: al ser idempotentes, agregan solo las columnas/objetos que
+> falten (p. ej. `CuentaBilletera.Estado`) sin tocar tus datos.
 
 ---
 
@@ -215,7 +226,7 @@ Editá **dos archivos** y cambiá estos valores por los tuyos:
 
 ```jsonc
 "ConnectionStrings": {
-  // Cambiá "Server=FRANCO" por el nombre de TU servidor SQL.
+  // Cambiá por el nombre de TU servidor SQL.
   // Si usás SQL Express local, normalmente es: localhost\SQLEXPRESS
   "BilleterasDB": "Server=localhost\\SQLEXPRESS;Database=BilleterasDB;Integrated Security=True;TrustServerCertificate=True;"
 },
@@ -319,8 +330,9 @@ SAOT-Unificador-de-Billeteras-1/
 ├── backend/
 │   ├── db/
 │   │   ├── init.sql                           # Creación idempotente de SQL Server (20 tablas)
+│   │   ├── alteraciones_solicitud_cobro.sql   # Migración: columnas del módulo maestro-detalle
 │   │   ├── MODELO-DATOS.md                    # MER + MR (diagramas de la base)
-│   │   ├── seed_test.sql                      # Datos de prueba opcionales
+│   │   ├── seed_test.sql                      # Datos de prueba opcionales (billeteras + ~95 movs)
 │   │   └── neo4j/                             # Scripts Cypher + README (BD-04)
 │   ├── Billeteras.Entidades/                  # POCOs del dominio
 │   ├── Billeteras.Datos/                      # Interfaces de repo + implementación ADO.NET
@@ -347,8 +359,8 @@ SAOT-Unificador-de-Billeteras-1/
 
 ## Roadmap (trabajos prácticos del cuatrimestre)
 
-| TP    | Descripción                                                    | Estado      |
-|-------|----------------------------------------------------------------|-------------|
+| TP    | Descripción                                                    | Estado        |
+|-------|----------------------------------------------------------------|-------------  |
 | TP-01 | Definición del dominio y prototipo de interfaz                 | ✅ Hecho     |
 | TP-02 | Configuración del backend y autenticación                      | ✅ Hecho     |
 | TP-03 | Integración Frontend–Backend                                   | ✅ Hecho     |
@@ -357,7 +369,7 @@ SAOT-Unificador-de-Billeteras-1/
 | TP-06 | Operaciones maestro‑detalle y transacciones                    | ✅ Hecho     |
 | TP-07 | Flujos operativos complejos y control de estados               | ✅ Hecho     |
 | TP-08 | Seguridad y control de acceso                                  | ✅ Hecho     |
-| TP-09 | Consultas avanzadas, filtros y reportes (incluye Neo4j BD‑04)  | 🔄 En curso |
-| TP-10 | Documentación técnica de la API y pruebas                      | 🔄 En curso |
-| TP-11 | Mejora de UX y optimización                                    | Pendiente   |
-| TP-12 | Presentación preliminar (pre‑entrega)                          | Pendiente   |
+| TP-09 | Consultas avanzadas, filtros y reportes (incluye Neo4j BD‑04)  | ✅ Hecho     |
+| TP-10 | Documentación técnica de la API y pruebas                      | ✅ Hecho     |
+| TP-11 | Mejora de UX y optimización                                    | ✅ Hecho     |
+| TP-12 | Presentación preliminar (pre‑entrega)                          | ✅ Hecho     |

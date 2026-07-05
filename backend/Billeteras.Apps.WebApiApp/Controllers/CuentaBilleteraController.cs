@@ -4,11 +4,15 @@ using Billeteras.Entidades;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+/// Controlador MVC (vistas Razor, NO API REST) del TP-02/TP-04. Muestra cuentas y
+/// movimientos y permite alternar entre datos SIMULADOS (mock en memoria) y la
+/// base real (?source=db). Es la parte que usa el repositorio ADO en el módulo de vista.
 public class CuentaBilleteraController : Controller
 {
     private readonly ICuentaBilleteraRepository _cuentaRepo;
     private readonly IMovimientoRepository _movimientoRepo;
 
+    // Datos simulados (fallback de demo) usados cuando source != "db".
     private static readonly List<Usuario> MockUsuarios = new()
     {
         new Usuario { UsuarioId = 1, Nombre = "Lautaro", Apellido = "Oporto", Email = "lautaro.oporto@example.com" },
@@ -26,9 +30,10 @@ public class CuentaBilleteraController : Controller
     private static readonly List<CuentaBilletera> MockCuentas = new();
     private static readonly List<Movimiento> MockMovimientos = new();
 
+    // Precarga las cuentas y movimientos simulados una sola vez (datos de demo).
     static CuentaBilleteraController()
     {
-        MockCuentas.Add(new CuentaBilletera 
+        MockCuentas.Add(new CuentaBilletera
         { 
             CuentaBilleteraId = 1, 
             UsuarioId = 1, 
@@ -79,6 +84,7 @@ public class CuentaBilleteraController : Controller
         _movimientoRepo = movimientoRepo;
     }
 
+    // Vista lista: muestra todas las cuentas, desde mock o desde la DB (con fallback a mock si falla).
     public async Task<IActionResult> Index(string source = "mock")
     {
         source = source.ToLower() == "db" ? "db" : "mock";
@@ -108,6 +114,7 @@ public class CuentaBilleteraController : Controller
         return View(cuentas);
     }
 
+    // Vista detalle: una cuenta con sus movimientos, desde mock o desde la DB.
     public async Task<IActionResult> Details(int id, string source = "mock")
     {
         source = source.ToLower() == "db" ? "db" : "mock";

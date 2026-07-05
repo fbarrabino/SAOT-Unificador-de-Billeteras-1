@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Billeteras.Datos;
 using Billeteras.Datos.Interfaces;
 using Billeteras.DatosEF;
@@ -102,11 +103,66 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 
-// CORS abierto (política "AllowAll")
+// ─── Swagger / OpenAPI (rúbrica 6.3 — documentación de la API) ────────────────
+// Genera la doc interactiva en /swagger. Con AddSecurityDefinition sumamos el
+// botón "Authorize" para pegar el JWT y probar los endpoints protegidos.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Billeteras API — Unificador de Billeteras (SaOT)",
+        Version = "v1",
+        Description = "API REST del TP Integrador de Programación III (UTN FRRe). "
+                    + "Para probar endpoints protegidos: hacé login en /api/auth/login, "
+                    + "copiá el token y pegalo en el botón Authorize."
+    });
+
+    // Definición del esquema Bearer (Microsoft.OpenApi 2.x → sin Reference inline).
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Pegá SOLO el token JWT (sin escribir 'Bearer ' adelante)."
+    });
+
+    // En Swashbuckle 10 el requirement se arma con una función que recibe el
+    // documento; la referencia al esquema se hace con OpenApiSecuritySchemeReference.
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer", document, null), new List<string>() }
+    });
+});
+
+// ─── CORS restrictivo (rúbrica 5.3 / OWASP) ──────────────────────────────────
+// En vez de abrir a "*", permitimos SOLO los orígenes declarados en appsettings
+// ("Cors:AllowedOrigins"). Si no hay ninguno configurado, caemos a los orígenes
+// típicos de desarrollo (Expo web / Metro). La app móvil nativa no usa CORS, así
+// que no se ve afectada por esta restricción.
+var origenesPermitidos = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>();
+
+if (origenesPermitidos is null || origenesPermitidos.Length == 0)
+{
+    origenesPermitidos = new[]
+    {
+        "http://localhost:8081",   // Expo web / Metro
+        "http://localhost:19006",  // Expo web (legacy)
+        "http://localhost:3000"    // dev genérico
+    };
+}
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+    options.AddPolicy("Restrictiva", policy =>
+        policy.WithOrigins(origenesPermitidos)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 var app = builder.Build();
@@ -131,9 +187,35 @@ catch (Exception ex)
 }
 
 // Pipeline
+
+// Swagger UI disponible en /swagger (lo dejamos siempre activo para la demo/corrección).
+app.UseSwagger();
+app.UseSwaggerUI(o =>
+{
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Billeteras API v1");
+    o.DocumentTitle = "Billeteras API — Swagger";
+});
+
+// ─── Security headers (rúbrica 5.3 / OWASP) ──────────────────────────────────
+// Cabeceras defensivas en TODAS las respuestas: evitan MIME sniffing, embebido
+// en iframes (clickjacking) y fuga de la URL por Referer.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    await next();
+});
+
+// HSTS: fuerza HTTPS en el navegador (solo fuera de Development, donde el cert
+// autofirmado y http local complicarían la demo).
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseCors("AllowAll");
+app.UseCors("Restrictiva");
 app.UseAuthentication();
 app.UseAuthorization();
 

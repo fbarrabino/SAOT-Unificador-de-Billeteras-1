@@ -9,6 +9,12 @@
 
    El script asume que el usuario de prueba tiene UsuarioId = 1.
    Si creaste otros usuarios antes, cambiá la variable @UsuarioId abajo.
+
+   ⚠️ ENCODING: este archivo es UTF-8 (tiene acentos: María, Pérez, etc.).
+   - Con SSMS: se lee bien (respeta UTF-8), no hay que hacer nada.
+   - Con sqlcmd: usá el flag -f 65001  →  sqlcmd -f 65001 -S ... -i seed_test.sql
+     Sin ese flag, sqlcmd lo lee como Latin-1 y guarda los acentos corruptos
+     ("Pérez" → "PÃ©rez"), que en la app se ven como letras raras.
    ============================================================================ */
 
 USE BilleterasDB;
@@ -100,6 +106,81 @@ INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, 
     (@CuentaMP, @CatOcio,       DATEADD(DAY, -18, GETDATE()),       N'Spotify',                  699.00, N'EGRESO'),
     (@CuentaUA, @CatAlimentos,  DATEADD(DAY, -15, GETDATE()),       N'Carnicería',              3200.00, N'EGRESO'),
     (@CuentaLM, @CatTransporte, DATEADD(DAY, -12, GETDATE()),       N'Nafta YPF',               7500.00, N'EGRESO');
+
+-- ── 3b. Generación masiva de movimientos (para demostrar PAGINADO real) ────────
+-- Insertamos 80 movimientos MÁS, repartidos en las 3 cuentas, con montos y
+-- fechas variados (últimos 90 días). Con esto el listado paginado del front
+-- tiene varias páginas para recorrer (rúbrica 1.4 "datos suficientes para
+-- paginado" y 3.5 "listado paginado real"). ~20% son ingresos, el resto egresos.
+DECLARE @i INT = 1;
+DECLARE @cuentaSel INT, @catSel INT, @tipoTxt NVARCHAR(10);
+DECLARE @esIngreso BIT, @montoGen DECIMAL(18,2), @diasAtras INT;
+DECLARE @rndCuenta INT, @rndCat INT, @rndDesc INT, @descTxt NVARCHAR(80);
+
+-- Tablas de apoyo para elegir cuenta/categoría al azar por número de fila.
+DECLARE @cuentas TABLE (rn INT IDENTITY(1,1), Id INT);
+INSERT INTO @cuentas (Id) VALUES (@CuentaMP), (@CuentaUA), (@CuentaLM);
+
+DECLARE @catEgreso TABLE (rn INT IDENTITY(1,1), Id INT);
+INSERT INTO @catEgreso (Id) VALUES (@CatAlimentos), (@CatTransporte), (@CatServicios), (@CatOcio), (@CatOtros);
+
+-- Descripciones realistas: comercios/comida/entretenimiento para egresos y
+-- nombres de personas para las transferencias recibidas (ingresos).
+DECLARE @descEgreso TABLE (rn INT IDENTITY(1,1), Txt NVARCHAR(80));
+INSERT INTO @descEgreso (Txt) VALUES
+    (N'Coto'), (N'Carrefour'), (N'Supermercado Día'), (N'Jumbo'),
+    (N'McDonalds'), (N'Mostaza'), (N'Starbucks'), (N'Havanna'),
+    (N'Farmacity'), (N'Nafta YPF'), (N'Carga SUBE'), (N'Uber'),
+    (N'Netflix'), (N'Spotify'), (N'Cine Hoyts'), (N'PedidosYa'),
+    (N'Rappi'), (N'Mercado Libre'), (N'Edenor - Luz'), (N'Movistar'),
+    (N'Kiosco del barrio'), (N'Panadería La Espiga'), (N'Verdulería'), (N'Shell');
+
+DECLARE @descIngreso TABLE (rn INT IDENTITY(1,1), Txt NVARCHAR(80));
+INSERT INTO @descIngreso (Txt) VALUES
+    (N'Transferencia de Juan Pérez'), (N'Transferencia de María González'),
+    (N'Pago de Lucas Fernández'), (N'Transferencia de Sofía Romero'),
+    (N'Sueldo'), (N'Reintegro obra social'), (N'Transferencia de Martín Díaz'),
+    (N'Devolución de Ana López'), (N'Cobro a Diego Suárez'), (N'Transferencia de Valentina Ruiz');
+
+WHILE @i <= 80
+BEGIN
+    -- Cuenta al azar (1..3) y "moneda" para decidir ingreso/egreso.
+    -- El índice se calcula a variable ANTES del SELECT: si NEWID() va dentro del
+    -- WHERE se evalúa por fila y puede matchear 0 o varias filas (error 512).
+    -- A variable → la subconsulta devuelve exactamente 1 fila.
+    SET @rndCuenta = (ABS(CHECKSUM(NEWID())) % 3) + 1;
+    SET @cuentaSel = (SELECT Id FROM @cuentas WHERE rn = @rndCuenta);
+    SET @esIngreso = CASE WHEN (ABS(CHECKSUM(NEWID())) % 5) = 0 THEN 1 ELSE 0 END;  -- ~20% ingresos
+    SET @montoGen  = CAST((ABS(CHECKSUM(NEWID())) % 500000) / 100.0 AS DECIMAL(18,2)) + 1.00; -- $1 .. $5000
+    SET @diasAtras = ABS(CHECKSUM(NEWID())) % 90;  -- fecha en los últimos 90 días
+
+    IF @esIngreso = 1
+    BEGIN
+        SELECT @catSel = @CatTransfIn, @tipoTxt = N'Ingreso';
+        SET @rndDesc = (ABS(CHECKSUM(NEWID())) % (SELECT COUNT(*) FROM @descIngreso)) + 1;
+        SET @descTxt = (SELECT Txt FROM @descIngreso WHERE rn = @rndDesc);
+    END
+    ELSE
+    BEGIN
+        SET @rndCat  = (ABS(CHECKSUM(NEWID())) % 5) + 1;
+        SET @catSel  = (SELECT Id FROM @catEgreso WHERE rn = @rndCat);
+        SET @tipoTxt = N'Egreso';
+        SET @rndDesc = (ABS(CHECKSUM(NEWID())) % (SELECT COUNT(*) FROM @descEgreso)) + 1;
+        SET @descTxt = (SELECT Txt FROM @descEgreso WHERE rn = @rndDesc);
+    END
+
+    INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, Monto, Tipo)
+    VALUES (
+        @cuentaSel,
+        @catSel,
+        DATEADD(DAY, -@diasAtras, GETDATE()),
+        @descTxt,
+        @montoGen,
+        @tipoTxt
+    );
+
+    SET @i += 1;
+END
 
 PRINT 'Seed completado. Cuentas y movimientos cargados para UsuarioId = ' + CAST(@UsuarioId AS VARCHAR);
 PRINT 'Cuenta MP  id: ' + CAST(@CuentaMP AS VARCHAR);

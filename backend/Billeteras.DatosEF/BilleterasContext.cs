@@ -33,6 +33,8 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
     public DbSet<CodigoVerificacion> CodigosVerificacion => Set<CodigoVerificacion>();
     public DbSet<UsuarioSesion> UsuariosSesiones => Set<UsuarioSesion>();
 
+    // Configura por Fluent API lo que EF no deduce solo: índices únicos, defaults,
+    // claves compuestas (N:M) y el comportamiento de borrado (cascade/no-action) de las FK.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Configuración Base
@@ -55,6 +57,15 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
             // FechaVinculacion: se setea desde C# (DateTime.UtcNow), no se deja a la DB.
             e.Property(c => c.FechaVinculacion)
                 .ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<Movimiento>(e =>
+        {
+            // MISMO CASO que CuentaBilletera: el trigger trg_Auditar_Movimientos hace
+            // que SQL Server rechace el INSERT si EF usa "OUTPUT INSERTED" para leer el
+            // PK IDENTITY (error 334). UseSqlOutputClause(false) → EF usa SCOPE_IDENTITY(),
+            // que sí convive con triggers. Sin esto fallan enviar / cambiar / pagar-qr / anular.
+            e.ToTable("Movimiento", t => t.UseSqlOutputClause(false));
         });
 
         // ==========================================

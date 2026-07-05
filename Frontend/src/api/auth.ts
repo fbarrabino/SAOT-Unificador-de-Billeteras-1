@@ -35,6 +35,9 @@ export interface UsuarioResponse {
   apellido: string;
   email: string;
   fechaAlta: string;
+  pais: string | null;
+  telefono: string | null;
+  fotoPerfilUrl: string | null;
 }
 
 interface LoginResponse {

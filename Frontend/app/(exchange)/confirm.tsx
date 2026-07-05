@@ -15,6 +15,7 @@ import { type WalletKey } from '@/data/wallets';
 import { fmt } from '@/utils/format';
 import { colors, fonts, gradients, radii, shadow } from '@/theme/tokens';
 import { useWallets } from '@/context/WalletsContext';
+import { useNotif } from '@/context/NotifContext';
 import {
   cambiar,
   CATEGORIA_EGRESO_DEFAULT,
@@ -32,6 +33,7 @@ export default function ExchangeConfirm() {
   }>();
 
   const { wallets, refresh } = useWallets();
+  const { notify } = useNotif();
   const fromWallet =
     wallets.find((w) => w.key === ((from as WalletKey) ?? 'mp')) ?? wallets[0];
   const toWallet =
@@ -68,6 +70,7 @@ export default function ExchangeConfirm() {
         descripcion: `Cambio ${fromWallet.name} → ${toWallet.name}`,
       });
       await refresh();
+      notify({ emoji: '🔄', title: 'Cambio realizado', subtitle: `Pasaste ${fmt(n)} de ${fromWallet.name} a ${toWallet.name}` });
       router.replace({
         pathname: '/(exchange)/success',
         params: {
@@ -129,8 +132,7 @@ export default function ExchangeConfirm() {
               }
             />
             <Row label="Monto" right={<Text style={styles.value}>{fmt(n)}</Text>} />
-            <Row label="Tasa" right={<Text style={styles.value}>1.00</Text>} />
-            <Row label="Comisión" right={<Text style={styles.value}>{fmt(f)}</Text>} />
+            <Row label="Comisión" right={<Text style={[styles.value, { color: colors.green }]}>Sin comisión</Text>} />
             <Row label="Llega" right={<Text style={styles.value}>Al instante</Text>} last />
           </View>
         </ScrollView>

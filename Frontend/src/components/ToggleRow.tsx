@@ -10,6 +10,7 @@ type ToggleRowProps = {
     isLast?: boolean;
 };
 
+// Fila de ajuste con label, subtítulo opcional y un Switch on/off (usada en configuraciones).
 export function ToggleRow({ label, sub, value, onValueChange, isLast = false }: ToggleRowProps) {
     return (
         <View style={[styles.toggleRow, !isLast && styles.toggleBorder]}>

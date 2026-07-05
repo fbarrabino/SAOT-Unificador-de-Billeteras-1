@@ -7,6 +7,7 @@ import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { colors, fonts, gradients, radii } from '@/theme/tokens';
 import { useSession } from '@/context/SessionContext';
+import { useWallets } from '@/context/WalletsContext';
 
 function RowIcon({ children, color = colors.cyan }: { children: React.ReactNode; color?: string }) {
   return (
@@ -29,8 +30,12 @@ const ICON_PROPS = (color: string) => ({
   strokeLinejoin: 'round' as const,
 });
 
+// Tab Perfil: tarjeta del usuario y accesos a métodos de pago, notificaciones,
+// seguridad, ayuda/soporte y cierre de sesión.
 export default function Profile() {
   const { usuario } = useSession();
+  const { wallets } = useWallets();
+  const nBilleteras = wallets.length;
 
   const nombreCompleto = usuario
     ? `${usuario.nombre} ${usuario.apellido}`.trim()
@@ -67,7 +72,7 @@ export default function Profile() {
             {/* ACÁ ESTÁ EL ENLACE A TU NUEVA PANTALLA */}
             <Row
               label="Métodos de pago"
-              sub="3 billeteras vinculadas"
+              sub={`${nBilleteras} billetera${nBilleteras === 1 ? '' : 's'} vinculada${nBilleteras === 1 ? '' : 's'}`}
               onPress={() => router.push('/payment-methods')}
             >
               <RowIcon>
@@ -78,7 +83,7 @@ export default function Profile() {
               </RowIcon>
             </Row>
 
-            <Row label="Notificaciones" sub="Push, email">
+            <Row label="Notificaciones" sub="Push, email" onPress={() => router.push('/profile-notifications')}>
               <RowIcon>
                 <Svg width={20} height={20} viewBox="0 0 24 24" {...ICON_PROPS(colors.cyan)}>
                   <Path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9" />

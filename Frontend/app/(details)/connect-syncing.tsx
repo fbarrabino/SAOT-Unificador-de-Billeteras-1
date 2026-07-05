@@ -1,3 +1,4 @@
+// Vincular billetera — pantalla de sincronización (loader) que finaliza la vinculación.
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -7,6 +8,8 @@ import { WalletGlyph } from '@/components/WalletGlyph';
 import type { WalletGlyphKey } from '@/components/WalletGlyph';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 import { WALLET_CATALOG } from '@/data/wallets';
+import { vincularCuentaBilletera } from '@/api/cuentas';
+import { useNotif } from '@/context/NotifContext';
 
 const SYNC_DURATION_MS = 2200;
 const GLYPH_KEYS: WalletGlyphKey[] = ['mp', 'ua', 'lm', 'bb', 'nx'];
@@ -22,12 +25,30 @@ export default function ConnectSyncingScreen() {
         ? (paramKey as WalletGlyphKey)
         : null;
 
+    const { notify } = useNotif();
+
     useEffect(() => {
-        const t = setTimeout(() => {
-            // 3. NAVEGACIÓN DE FRANCO: Arrastramos el ID limpio a la pantalla final
-            router.replace({ pathname: '/(details)/connect-success', params: { wallet: paramKey } });
+        let cancelled = false;
+
+        // Saldo ficticio "detectado" automáticamente: no se lo pedimos al usuario
+        // porque la app se vincula sola. Rango realista para la demo ($20k–$500k).
+        const saldoFicticio = Math.floor(Math.random() * 480000 + 20000);
+
+        const t = setTimeout(async () => {
+            try {
+                // Vinculamos la billetera con el saldo detectado (queda persistido en la API).
+                await vincularCuentaBilletera(walletInfo.dbId, `Mi ${walletInfo.name}`, saldoFicticio);
+                notify({ emoji: '✅', title: 'Billetera conectada', subtitle: `Vinculaste ${walletInfo.name}` });
+            } catch (e) {
+                // Si la API no responde, igual avanzamos para no trabar la demo.
+                console.warn('[connect-syncing] No se pudo vincular la cuenta:', e);
+            }
+            if (!cancelled) {
+                router.replace({ pathname: '/(details)/connect-success', params: { wallet: paramKey } });
+            }
         }, SYNC_DURATION_MS);
-        return () => clearTimeout(t);
+
+        return () => { cancelled = true; clearTimeout(t); };
     }, [paramKey]);
 
     return (

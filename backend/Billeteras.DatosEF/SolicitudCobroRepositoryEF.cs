@@ -12,6 +12,7 @@ namespace Billeteras.DatosEF;
 /// persistir datos de forma atómica es responsabilidad de la capa de Datos.
 public class SolicitudCobroRepositoryEF(BilleterasContext ctx) : ISolicitudCobroRepository
 {
+    // Solicitudes donde el usuario es el que cobra, con sus líneas y deudores.
     public async Task<List<SolicitudCobro>> ObtenerPorSolicitanteAsync(int usuarioSolicitanteId)
         => await ctx.SolicitudesCobro
             .Include(s => s.UsuarioSolicitante)
@@ -21,6 +22,7 @@ public class SolicitudCobroRepositoryEF(BilleterasContext ctx) : ISolicitudCobro
             .OrderByDescending(s => s.FechaCreacion)
             .ToListAsync();
 
+    // Detalle completo (cabecera + líneas + deudor + movimiento) de una solicitud.
     public async Task<SolicitudCobro?> ObtenerConLineasAsync(int solicitudId)
         => await ctx.SolicitudesCobro
             .Include(s => s.UsuarioSolicitante)
@@ -30,6 +32,7 @@ public class SolicitudCobroRepositoryEF(BilleterasContext ctx) : ISolicitudCobro
                 .ThenInclude(l => l.Movimiento)
             .FirstOrDefaultAsync(s => s.SolicitudId == solicitudId);
 
+    // Devuelve una línea de detalle por su Id, con su solicitud y deudor.
     public async Task<SolicitudCobroDetalle?> ObtenerDetalleAsync(int detalleSolicitudId)
         => await ctx.SolicitudesCobroDetalles
             .Include(d => d.Solicitud)

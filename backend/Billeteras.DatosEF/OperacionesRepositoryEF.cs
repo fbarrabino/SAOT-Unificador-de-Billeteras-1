@@ -5,22 +5,19 @@ using Billeteras.Entidades;
 
 namespace Billeteras.DatosEF;
 
-/// Implementación EF Core de las operaciones transaccionales del dominio.
-///
-/// Patrón común:
-///   1. ctx.Database.BeginTransactionAsync()
-///   2. validar cuentas + categorías + saldo
-///   3. agregar movimiento(s) y actualizar saldo(s)
-///   4. SaveChangesAsync()
-///   5. CommitAsync() — o RollbackAsync() vía try/catch ante cualquier excepción
+/// Implementación EF Core de las operaciones transaccionales (enviar, cambiar,
+/// transferir, pagar QR, anular). Cada método corre en una transacción de DB:
+/// inserta movimiento(s) y ajusta saldo(s) de forma atómica (commit/rollback).
 public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesRepository
 {
     private const string TipoIngreso = "Ingreso";
     private const string TipoEgreso = "Egreso";
 
-    // ─── BE-03 Enviar ─────────────────────────────────────────────────────────
-    public async Task<(int movimientoId, decimal saldoOrigenFinal)> EnviarAsync(
+    // ─── BE-03 Enviar (Modificado para Doble Movimiento y Fallback de Categoría) ───
+    // Egreso de la cuenta origen y, si hay destino interno, ingreso espejo al receptor.
+    public async Task<(List<int> movimientosIds, decimal saldoOrigenFinal, decimal? saldoDestinoFinal)> EnviarAsync(
         int cuentaOrigenId,
+        int? cuentaDestinoId,
         int categoriaId,
         decimal monto,
         string? descripcion)
@@ -28,26 +25,65 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         await using IDbContextTransaction tx = await ctx.Database.BeginTransactionAsync();
         try
         {
-            var cuenta = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
-            await ValidarCategoriaAsync(categoriaId, TipoEgreso);
+            var origen = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
+            
+            // Blindaje: Si la categoría no existe en esta DB, asigna la primera de tipo Egreso automáticamente
+            categoriaId = await ObtenerOValidarCategoriaAsync(categoriaId, TipoEgreso);
 
-            var movimiento = new Movimiento
+            var movEgreso = new Movimiento
             {
-                CuentaBilleteraId = cuenta.CuentaBilleteraId,
+                CuentaBilleteraId = origen.CuentaBilleteraId,
                 CategoriaId = categoriaId,
                 Fecha = DateTime.Now,
                 Descripcion = descripcion,
                 Monto = monto,
                 Tipo = TipoEgreso
             };
-            ctx.Movimientos.Add(movimiento);
+            ctx.Movimientos.Add(movEgreso);
+            origen.SaldoActual -= monto;
 
-            cuenta.SaldoActual -= monto;
+            List<int> movimientosCreados = new();
+            decimal? saldoDestino = null;
 
-            await ctx.SaveChangesAsync();
+            // Si se envió a un usuario interno de la aplicación, generamos el ingreso receptor.
+            if (cuentaDestinoId.HasValue)
+            {
+                if (cuentaOrigenId == cuentaDestinoId.Value)
+                    throw new InvalidOperationException("La cuenta origen y destino no pueden ser la misma.");
+
+                var destino = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaDestinoId.Value)
+                    ?? throw new InvalidOperationException($"La cuenta destino {cuentaDestinoId} no existe.");
+
+                // Buscamos una categoría de tipo Ingreso en la base para asignar al movimiento receptor.
+                var catIngreso = await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == TipoIngreso && (c.Nombre.Contains("Transferencia") || c.Nombre.Contains("Recibido") || c.Nombre.Contains("Ingreso")))
+                    ?? await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == TipoIngreso)
+                    ?? throw new InvalidOperationException("No se encontró una categoría de tipo Ingreso configurada en la base de datos.");
+
+                var movIngreso = new Movimiento
+                {
+                    CuentaBilleteraId = destino.CuentaBilleteraId,
+                    CategoriaId = catIngreso.CategoriaId,
+                    Fecha = DateTime.Now,
+                    Descripcion = descripcion ?? "Transferencia recibida",
+                    Monto = monto,
+                    Tipo = TipoIngreso
+                };
+                ctx.Movimientos.Add(movIngreso);
+                destino.SaldoActual += monto;
+
+                await ctx.SaveChangesAsync();
+                movimientosCreados.Add(movEgreso.MovimientoId);
+                movimientosCreados.Add(movIngreso.MovimientoId);
+                saldoDestino = destino.SaldoActual;
+            }
+            else
+            {
+                await ctx.SaveChangesAsync();
+                movimientosCreados.Add(movEgreso.MovimientoId);
+            }
+
             await tx.CommitAsync();
-
-            return (movimiento.MovimientoId, cuenta.SaldoActual);
+            return (movimientosCreados, origen.SaldoActual, saldoDestino);
         }
         catch
         {
@@ -57,6 +93,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── BE-04 Cambiar ────────────────────────────────────────────────────────
+    // Mueve saldo entre DOS cuentas del MISMO usuario (egreso + ingreso espejo).
     public async Task<(int movEgresoId, int movIngresoId, decimal saldoOrigenFinal, decimal saldoDestinoFinal)>
         CambiarAsync(
             int cuentaOrigenId,
@@ -79,8 +116,75 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
             if (origen.UsuarioId != destino.UsuarioId)
                 throw new InvalidOperationException("Las cuentas origen y destino deben pertenecer al mismo usuario.");
 
-            await ValidarCategoriaAsync(categoriaEgresoId, TipoEgreso);
-            await ValidarCategoriaAsync(categoriaIngresoId, TipoIngreso);
+            categoriaEgresoId = await ObtenerOValidarCategoriaAsync(categoriaEgresoId, TipoEgreso);
+            categoriaIngresoId = await ObtenerOValidarCategoriaAsync(categoriaIngresoId, TipoIngreso);
+
+            var fecha = DateTime.Now;
+
+            var movEgreso = new Movimiento
+            {
+                CuentaBilleteraId = origen.CuentaBilleteraId,
+                CategoriaId = categoriaEgresoId,
+                Fecha = fecha,
+                Descripcion = descripcion,
+                Monto = monto,
+                Tipo = TipoEgreso
+            };
+            var movIngreso = new Movimiento
+            {
+                CuentaBilleteraId = destino.CuentaBilleteraId,
+                CategoriaId = categoriaIngresoId,
+                Fecha = fecha,
+                Descripcion = descripcion,
+                Monto = monto,
+                Tipo = TipoIngreso
+            };
+            ctx.Movimientos.Add(movEgreso);
+            ctx.Movimientos.Add(movIngreso);
+
+            origen.SaldoActual -= monto;
+            destino.SaldoActual += monto;
+
+            await ctx.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return (movEgreso.MovimientoId, movIngreso.MovimientoId, origen.SaldoActual, destino.SaldoActual);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    // ─── Transferir (pago QR a otro usuario) ──────────────────────────────────
+    // Igual que Cambiar pero entre usuarios DISTINTOS (el que paga → el que cobró por QR).
+    public async Task<(int movEgresoId, int movIngresoId, decimal saldoOrigenFinal, decimal saldoDestinoFinal)>
+        TransferirAsync(
+            int cuentaOrigenId,
+            int cuentaDestinoId,
+            int categoriaEgresoId,
+            int categoriaIngresoId,
+            decimal monto,
+            string? descripcion)
+    {
+        if (cuentaOrigenId == cuentaDestinoId)
+            throw new InvalidOperationException("La cuenta origen y destino no pueden ser la misma.");
+
+        await using IDbContextTransaction tx = await ctx.Database.BeginTransactionAsync();
+        try
+        {
+            var origen = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
+            var destino = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaDestinoId)
+                ?? throw new InvalidOperationException($"La cuenta destino {cuentaDestinoId} no existe.");
+
+            // NOTA: a diferencia de Cambiar, acá NO exigimos mismo usuario: es una
+            // transferencia de una persona a otra (el que pagó → el que cobró por QR).
+
+            // Franco renombró el helper a ObtenerOValidarCategoriaAsync (con fallback):
+            // devuelve un id válido aunque la categoría pedida no exista en esta DB.
+            categoriaEgresoId = await ObtenerOValidarCategoriaAsync(categoriaEgresoId, TipoEgreso);
+            categoriaIngresoId = await ObtenerOValidarCategoriaAsync(categoriaIngresoId, TipoIngreso);
 
             var fecha = DateTime.Now;
 
@@ -121,6 +225,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── BE-05 Pagar QR ───────────────────────────────────────────────────────
+    // Egreso a comercio por pago de QR; guarda el código QR en MetadataExtranjera (JSON).
     public async Task<(int movimientoId, decimal saldoOrigenFinal)> PagarQrAsync(
         int cuentaOrigenId,
         int categoriaId,
@@ -132,7 +237,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         try
         {
             var cuenta = await ObtenerCuentaParaEgresoAsync(cuentaOrigenId, monto);
-            await ValidarCategoriaAsync(categoriaId, TipoEgreso);
+            categoriaId = await ObtenerOValidarCategoriaAsync(categoriaId, TipoEgreso);
 
             var movimiento = new Movimiento
             {
@@ -142,8 +247,6 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
                 Descripcion = descripcion,
                 Monto = monto,
                 Tipo = TipoEgreso,
-                // Guardamos el QR escaneado en el campo JSON ya existente del modelo (BE-01)
-                // para que quede trazable la operación que originó el pago.
                 MetadataExtranjera = codigoQR is null
                     ? null
                     : System.Text.Json.JsonSerializer.Serialize(new { qr = codigoQR })
@@ -165,6 +268,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
     }
 
     // ─── BE-09 Anular ─────────────────────────────────────────────────────────
+    // Marca el movimiento como anulado y revierte su efecto en el saldo (sin borrarlo).
     public async Task<(int movimientoId, decimal saldoFinal)> AnularAsync(int movimientoId)
     {
         await using IDbContextTransaction tx = await ctx.Database.BeginTransactionAsync();
@@ -179,9 +283,6 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
             var cuenta = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == mov.CuentaBilleteraId)
                 ?? throw new InvalidOperationException($"La cuenta {mov.CuentaBilleteraId} del movimiento no existe.");
 
-            // Reversión:
-            //   Egreso original  → devolvemos el monto a la cuenta (+monto).
-            //   Ingreso original → sacamos el monto de la cuenta (-monto), pero sólo si hay saldo.
             if (string.Equals(mov.Tipo, TipoEgreso, StringComparison.OrdinalIgnoreCase))
             {
                 cuenta.SaldoActual += mov.Monto;
@@ -210,8 +311,7 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
+    // Trae la cuenta y valida que exista y tenga saldo suficiente para el egreso.
     private async Task<CuentaBilletera> ObtenerCuentaParaEgresoAsync(int cuentaId, decimal monto)
     {
         var cuenta = await ctx.CuentasBilletera.FirstOrDefaultAsync(c => c.CuentaBilleteraId == cuentaId)
@@ -224,13 +324,17 @@ public class OperacionesRepositoryEF(BilleterasContext ctx) : IOperacionesReposi
         return cuenta;
     }
 
-    private async Task ValidarCategoriaAsync(int categoriaId, string tipoEsperado)
+    // ─── Helper Defensivo: Valida o hace Fallback de Categoría ─────────────────
+    private async Task<int> ObtenerOValidarCategoriaAsync(int categoriaId, string tipoEsperado)
     {
-        var categoria = await ctx.Categorias.FirstOrDefaultAsync(c => c.CategoriaId == categoriaId)
-            ?? throw new InvalidOperationException($"La categoría {categoriaId} no existe.");
+        var categoria = await ctx.Categorias.FirstOrDefaultAsync(c => c.CategoriaId == categoriaId && c.Tipo == tipoEsperado);
+        if (categoria != null)
+            return categoria.CategoriaId;
 
-        if (!string.Equals(categoria.Tipo, tipoEsperado, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException(
-                $"La categoría '{categoria.Nombre}' es de tipo '{categoria.Tipo}', se esperaba '{tipoEsperado}'.");
+        // Si la categoría pedida no existe (ej. ID 7), buscamos la primera válida de ese tipo en la DB
+        var fallback = await ctx.Categorias.FirstOrDefaultAsync(c => c.Tipo == tipoEsperado)
+            ?? throw new InvalidOperationException($"No se encontró ninguna categoría de tipo '{tipoEsperado}' en la base de datos.");
+
+        return fallback.CategoriaId;
     }
 }

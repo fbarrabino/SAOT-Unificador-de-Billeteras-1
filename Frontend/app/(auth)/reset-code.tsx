@@ -19,6 +19,7 @@ import { colors, fonts, type } from '@/theme/tokens';
 import { forgotPassword } from '@/api/auth';
 import { ApiError } from '@/api/client';
 
+// Pantalla de ingreso del código de 6 dígitos; lo pasa a la pantalla de nueva contraseña.
 export default function ResetCode() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState('');
@@ -74,13 +75,16 @@ export default function ResetCode() {
           {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
         </View>
 
-        <View style={styles.footer}>
-          <PrimaryButton
-            label="Verificar código"
-            onPress={handleContinuar}
-            disabled={code.length < 6}
-          />
-        </View>
+              <View style={styles.footer}>
+                <PrimaryButton
+                  label="Verificar código"
+                  onPress={handleContinuar}
+                  disabled={code.length < 6}
+                />
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );

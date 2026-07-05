@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { colors, radii, spacing, type, gradients, shadow } from '@/theme/tokens';
 
+// Pagar QR — pantalla de éxito tras el pago; vuelve al inicio descartando el stack.
 export default function PayQRSuccessScreen() {
 
     // Función para volver al inicio borrando el stack

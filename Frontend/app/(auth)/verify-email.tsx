@@ -9,6 +9,7 @@ import { colors, fonts, type } from '@/theme/tokens';
 import { verifyEmail, resendVerificationEmail } from '@/api/auth';
 import { ApiError } from '@/api/client';
 
+// Pantalla de verificación de email: ingresa el código enviado al registrarse (con reenvío).
 export default function VerifyEmail() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState('');

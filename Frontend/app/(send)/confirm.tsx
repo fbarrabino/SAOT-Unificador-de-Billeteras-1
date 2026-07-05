@@ -1,7 +1,5 @@
-// Enviar #3 — Confirmar.
+// Enviar #3 — Confirmar Destinatario Real del Backend.
 // Resumen Para/Desde/Comisión/Llega + CTA "Deslizar para enviar".
-// FE-19: el CTA dispara POST /api/operaciones/enviar y solo navega a success
-// si el backend confirma la transacción (saldo + movimiento commit OK).
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,14 +15,35 @@ import { type WalletKey } from '@/data/wallets';
 import { fmt } from '@/utils/format';
 import { colors, fonts, gradients, radii, shadow } from '@/theme/tokens';
 import { useWallets } from '@/context/WalletsContext';
+import { useNotif } from '@/context/NotifContext';
 import { enviar, CATEGORIA_EGRESO_DEFAULT } from '@/api/operaciones';
 import { ApiError } from '@/api/client';
 import { confirmarConBiometria } from '@/utils/biometrics';
 
 export default function SendConfirm() {
-  const { to, from, amt } = useLocalSearchParams<{ to?: string; from?: WalletKey; amt?: string }>();
-  const contact = findContact(to ?? '') ?? findContact('lr')!;
+  const { to, from, amt, name, initials, color, cuentaDestinoId } = useLocalSearchParams<{
+    to?: string;
+    from?: WalletKey;
+    amt?: string;
+    name?: string;
+    initials?: string;
+    color?: string;
+    cuentaDestinoId?: string;
+  }>();
+
+  // Si existe en los mocks estáticos se usa; si no, reconstruimos con los parámetros asíncronos reales del BE
+  const staticContact = findContact(to ?? '');
+  const contact = staticContact ?? {
+    id: to ?? '',
+    name: name ?? 'Contacto',
+    handle: to ? `@${to}` : '@usuario',
+    initials: initials ?? '??',
+    color: color ?? '#A259FF',
+    cuentaDestinoId: cuentaDestinoId ? Number(cuentaDestinoId) : undefined
+  };
+
   const { wallets, refresh } = useWallets();
+  const { notify } = useNotif();
   const wallet =
     wallets.find((w) => w.key === ((from as WalletKey) ?? 'mp')) ?? wallets[0];
   const n = Number(amt ?? 0);
@@ -50,11 +69,21 @@ export default function SendConfirm() {
         categoriaId: CATEGORIA_EGRESO_DEFAULT,
         monto: n,
         descripcion: `Envío a ${contact.name}`,
+        cuentaDestinoId: contact.cuentaDestinoId ?? null, // Inyectamos la cuenta destino real del Backend
       });
+
       await refresh();
+      notify({ emoji: '💸', title: 'Envío realizado', subtitle: `Enviaste ${fmt(n)} a ${contact.name}` });
       router.replace({
         pathname: '/(send)/success',
-        params: { to: contact.id, from: wallet.key, amt: String(n) },
+        params: {
+          to: contact.id,
+          from: wallet.key,
+          amt: String(n),
+          name: contact.name,
+          initials: contact.initials,
+          color: contact.color
+        },
       });
     } catch (err) {
       const mensaje = err instanceof ApiError ? err.mensaje : 'No se pudo enviar el dinero.';

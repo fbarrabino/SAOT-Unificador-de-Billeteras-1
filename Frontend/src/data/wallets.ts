@@ -1,7 +1,15 @@
+/**
+ * wallets.ts — Tipos y catálogo de billeteras del frontend
+ *
+ * Define el tipo Wallet que consumen las pantallas, el catálogo estático de
+ * billeteras (sigla → id de DB, nombre, color) y datos mock de fallback.
+ */
 import { gradients } from '@/theme/tokens';
 
+// Sigla interna de cada billetera soportada en la UI.
 export type WalletKey = 'mp' | 'ua' | 'lm' | 'bb' | 'nx';
 
+// Billetera tal como la muestran las pantallas (saldo, alias corto, gradiente de color).
 export type Wallet = {
   key: WalletKey;
   name: string;
@@ -11,7 +19,7 @@ export type Wallet = {
   cuentaId?: number;
 };
 
-// Catálogo indexado por la sigla que envía Fabri desde la lista
+// Catálogo estático: mapea la sigla a su id en la DB, nombre, iniciales y color de marca.
 export const WALLET_CATALOG: Record<string, { dbId: number; name: string; initials: string; color: string }> = {
   "mp": { dbId: 1, name: "Mercado Pago", initials: "MP", color: "#009EE3" },
   "ua": { dbId: 2, name: "Ualá", initials: "UA", color: "#FF3366" },
@@ -44,5 +52,6 @@ export const MOCK_WALLETS: Wallet[] = (['mp', 'ua', 'lm', 'bb', 'nx'] as WalletK
 
 export const WALLETS = MOCK_WALLETS;
 
+// Busca una billetera por su sigla dentro de la lista dada (mock por defecto).
 export const findWallet = (k: WalletKey, wallets: Wallet[] = MOCK_WALLETS) =>
   wallets.find(w => w.key === k)!;

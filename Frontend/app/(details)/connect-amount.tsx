@@ -1,3 +1,4 @@
+// Vincular billetera — paso de monto/saldo inicial antes de confirmar la vinculación.
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';

@@ -17,6 +17,7 @@ GO
 
 -- 2) Tablas ---------------------------------------------------------------------
 
+-- Usuario: dueño de las cuentas; email único y contraseña hasheada (BCrypt).
 IF OBJECT_ID(N'dbo.Usuario', N'U') IS NULL
 CREATE TABLE dbo.Usuario
 (
@@ -37,6 +38,7 @@ IF COL_LENGTH(N'dbo.Usuario', N'EmailVerificado') IS NULL
     ALTER TABLE dbo.Usuario ADD EmailVerificado BIT NOT NULL CONSTRAINT DF_Usuario_EmailVerificado DEFAULT (0);
 GO
 
+-- Billetera: catálogo global de billeteras virtuales soportadas (Mercado Pago, Ualá, etc.).
 IF OBJECT_ID(N'dbo.Billetera', N'U') IS NULL
 CREATE TABLE dbo.Billetera
 (
@@ -47,6 +49,7 @@ CREATE TABLE dbo.Billetera
 );
 GO
 
+-- Categoria: catálogo para clasificar movimientos por tipo (Ingreso/Egreso).
 IF OBJECT_ID(N'dbo.Categoria', N'U') IS NULL
 CREATE TABLE dbo.Categoria
 (
@@ -57,6 +60,7 @@ CREATE TABLE dbo.Categoria
 );
 GO
 
+-- CuentaBilletera: la cuenta concreta de un usuario en una billetera (saldo, alias, estado).
 IF OBJECT_ID(N'dbo.CuentaBilletera', N'U') IS NULL
 CREATE TABLE dbo.CuentaBilletera
 (
@@ -79,6 +83,7 @@ IF COL_LENGTH(N'dbo.CuentaBilletera', N'Estado') IS NULL
     ADD Estado NVARCHAR(20) NOT NULL CONSTRAINT DF_CuentaBilletera_Estado DEFAULT ('Activa');
 GO
 
+-- Movimiento: cada ingreso/egreso de una cuenta (con campo JSON y flag de anulación agregados luego).
 IF OBJECT_ID(N'dbo.Movimiento', N'U') IS NULL
 CREATE TABLE dbo.Movimiento
 (
@@ -408,4 +413,25 @@ BEGIN
         (SELECT * FROM inserted FOR JSON AUTO)
     );
 END;
+GO
+
+-- ===================================================================
+-- BLOQUE B7 (D1+D3) - Perfil persistido, Franco
+-- ===================================================================
+IF COL_LENGTH(N'dbo.Usuario', N'Pais') IS NULL
+    ALTER TABLE dbo.Usuario ADD Pais NVARCHAR(60) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Usuario', N'Telefono') IS NULL
+    ALTER TABLE dbo.Usuario ADD Telefono NVARCHAR(30) NULL;
+GO
+-- ===================================================================
+-- BLOQUE B7 (D4) - Foto de perfil, Franco
+-- ===================================================================
+IF COL_LENGTH(N'dbo.Usuario', N'FotoPerfilUrl') IS NULL
+    ALTER TABLE dbo.Usuario ADD FotoPerfilUrl NVARCHAR(500) NULL;
+GO
+
+IF COL_LENGTH(N'dbo.Usuario', N'FotoPerfilUrl') IS NULL
+    ALTER TABLE dbo.Usuario ADD FotoPerfilUrl NVARCHAR(500) NULL;
 GO

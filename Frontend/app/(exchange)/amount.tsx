@@ -12,11 +12,14 @@ import { AmountDisplay } from '@/components/AmountDisplay';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { WalletGlyph } from '@/components/WalletGlyph';
-import { WALLETS, findWallet, type WalletKey } from '@/data/wallets';
+import { type Wallet, type WalletKey } from '@/data/wallets';
 import { amountValue, fmt, fmtCompact } from '@/utils/format';
 import { colors, fonts, gradients, radii, shadow } from '@/theme/tokens';
+import { useWallets } from '@/context/WalletsContext';
 
-const FEE_RATE = 0.003;
+// Sin comisión: el cambio entre billeteras del mismo usuario llega neto
+// (el backend mueve el monto completo). FEE_RATE queda en 0.
+const FEE_RATE = 0;
 
 export default function ExchangeAmount() {
   const [from, setFrom] = useState<WalletKey>('mp');
@@ -24,15 +27,17 @@ export default function ExchangeAmount() {
   const [amt, setAmt] = useState('250');
   const [picker, setPicker] = useState<'from' | 'to' | null>(null);
 
-  const fromWallet = findWallet(from);
-  const toWallet = findWallet(to);
+  // Saldos REALES del contexto (no mock) → se actualizan tras cada cambio.
+  const { wallets } = useWallets();
+  const fromWallet = wallets.find(w => w.key === from) ?? wallets[0];
+  const toWallet = wallets.find(w => w.key === to) ?? wallets.find(w => w.key !== from) ?? wallets[0];
   const n = amountValue(amt);
   const fee = useMemo(() => +(n * FEE_RATE).toFixed(2), [n]);
   const willReceive = +Math.max(0, n - fee).toFixed(2);
 
-  const sameWallet = from === to;
-  const insufficient = n > fromWallet.bal;
-  const valid = n > 0 && !insufficient && !sameWallet;
+  const sameWallet = fromWallet && toWallet ? fromWallet.key === toWallet.key : from === to;
+  const insufficient = fromWallet ? n > fromWallet.bal : false;
+  const valid = !!fromWallet && !!toWallet && n > 0 && !insufficient && !sameWallet;
 
   const ctaLabel = sameWallet
     ? 'Elegí billeteras distintas'
@@ -53,12 +58,29 @@ export default function ExchangeAmount() {
   function pickWallet(k: WalletKey) {
     if (picker === 'from') {
       setFrom(k);
-      if (k === to) setTo(WALLETS.find(w => w.key !== k)!.key);
+      if (k === to) setTo(wallets.find(w => w.key !== k)?.key ?? k);
     } else if (picker === 'to') {
       setTo(k);
-      if (k === from) setFrom(WALLETS.find(w => w.key !== k)!.key);
+      if (k === from) setFrom(wallets.find(w => w.key !== k)?.key ?? k);
     }
     setPicker(null);
+  }
+
+  // Con menos de 2 billeteras no se puede cambiar.
+  if (!fromWallet || !toWallet) {
+    return (
+      <View style={styles.root}>
+        <AuroraBackground />
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <ScreenHeader title="Cambiar" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <Text style={{ color: colors.muted, textAlign: 'center', fontFamily: fonts.body, fontSize: 14 }}>
+              Necesitás al menos 2 billeteras conectadas para cambiar dinero entre ellas.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
   }
 
   return (
@@ -92,7 +114,7 @@ export default function ExchangeAmount() {
 
           {picker ? (
             <View style={styles.pickList}>
-              {WALLETS.map(w => (
+              {wallets.map(w => (
                 <Pressable
                   key={w.key}
                   onPress={() => pickWallet(w.key)}
@@ -109,8 +131,7 @@ export default function ExchangeAmount() {
           <Text style={styles.amtLabel}>Monto</Text>
           <AmountDisplay text={fmtCompact(n)} size={56} variant="plain" />
           <Text style={styles.computed}>
-            Recibirás = <Text style={{ color: colors.text }}>{fmt(willReceive)}</Text> · Comisión{' '}
-            <Text style={{ color: colors.text }}>{fmt(fee)}</Text>
+            Recibirás <Text style={{ color: colors.text }}>{fmt(willReceive)}</Text> · sin comisión
           </Text>
 
           <View style={{ marginTop: 12 }}>
@@ -148,7 +169,7 @@ function WalletSlot({
   picking,
 }: {
   role: string;
-  wallet: ReturnType<typeof findWallet>;
+  wallet: Wallet;
   onPick: () => void;
   picking: boolean;
 }) {

@@ -4,17 +4,22 @@ using Billeteras.Datos.Interfaces;
 
 namespace Billeteras.DatosEF;
 
+/// Implementación EF Core del repositorio de TicketSoporte (maestro-detalle, BE-07).
 public class TicketSoporteRepositoryEF(BilleterasContext context) : ITicketSoporteRepository
 {
+    // Trae todos los tickets de soporte.
     public async Task<IEnumerable<TicketSoporte>> GetAllAsync()
         => await context.TicketsSoporte.ToListAsync();
 
+    // Busca un ticket por su Id (null si no existe).
     public async Task<TicketSoporte?> GetByIdAsync(int id)
         => await context.TicketsSoporte.FindAsync(id);
 
+    // Devuelve los tickets abiertos por un usuario.
     public async Task<IEnumerable<TicketSoporte>> GetByUsuarioIdAsync(int usuarioId)
         => await context.TicketsSoporte.Where(t => t.UsuarioId == usuarioId).ToListAsync();
 
+    // Agrega un ticket simple (sin mensajes) y lo devuelve.
     public async Task<TicketSoporte> AddAsync(TicketSoporte ticket)
     {
         context.TicketsSoporte.Add(ticket);
@@ -22,6 +27,7 @@ public class TicketSoporteRepositoryEF(BilleterasContext context) : ITicketSopor
         return ticket;
     }
 
+    // Cambia el estado del ticket (ej. "Abierto" → "Cerrado") si existe.
     public async Task UpdateEstadoAsync(int id, string nuevoEstado)
     {
         var ticket = await context.TicketsSoporte.FindAsync(id);

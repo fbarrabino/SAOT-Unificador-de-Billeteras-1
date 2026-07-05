@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, TextInputProps } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { colors, radii, fonts, type } from '@/theme/tokens';
 
 type Props = TextInputProps & {
@@ -7,6 +8,7 @@ type Props = TextInputProps & {
   password?: boolean;
 };
 
+// Campo de texto con label opcional y, si password, un ojo para mostrar/ocultar.
 export function Input({ label, password, style, ...rest }: Props) {
   const [hidden, setHidden] = useState(!!password);
   return (
@@ -21,7 +23,8 @@ export function Input({ label, password, style, ...rest }: Props) {
         />
         {password ? (
           <Pressable onPress={() => setHidden(h => !h)} hitSlop={10}>
-            <Text style={styles.toggle}>{hidden ? 'VER' : 'OCULTAR'}</Text>
+            {/* Ojo abierto cuando la contraseña está visible; cerrado cuando está oculta. */}
+            <Feather name={hidden ? 'eye-off' : 'eye'} size={20} color={colors.muted} />
           </Pressable>
         ) : null}
       </View>
@@ -48,11 +51,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 15,
     paddingVertical: 12,
-  },
-  toggle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    color: colors.muted,
-    letterSpacing: 1.2,
   },
 });

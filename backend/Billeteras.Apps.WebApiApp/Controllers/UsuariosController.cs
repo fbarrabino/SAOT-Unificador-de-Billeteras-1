@@ -7,17 +7,83 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// API REST de usuarios: gestión del propio perfil, sesiones/dispositivos (D7) y
+// operaciones de Admin. Todo autenticado; cada acción valida ownership o rol Admin.
 [ApiController]
 [Route("api/usuarios")]
 [Authorize]
-public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones) : ControllerBase
+public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones, IWebHostEnvironment env) : ControllerBase
 {
     // Extrae el UsuarioId / Jti del JWT (mismo patrón que TicketsSoporteController).
     private int UsuarioId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private string Jti => User.FindFirstValue(JwtRegisteredClaimNames.Jti)!;
 
-    // ── D7: Dispositivos conectados ───────────────────────────────────────────
+    // ── B7 (D1+D3): Perfil persistido ─────────────────────────────────────────
+    /// GET /api/usuarios/me — perfil del usuario autenticado.
+    [HttpGet("me")]
+    public async Task<ActionResult<UsuarioResponse>> ObtenerPerfil()
+    {
+        var usuario = await negocio.ObtenerPorIdAsync(UsuarioId);
+        return usuario is null ? NotFound() : Ok(usuario);
+    }
 
+    /// PUT /api/usuarios/me — actualiza Nombre, Apellido, Email, Pais y Telefono
+    /// del usuario autenticado (vía JWT, no requiere pasar el id por ruta).
+    [HttpPut("me")]
+    public async Task<ActionResult<UsuarioResponse>> ActualizarPerfil([FromBody] UsuarioUpdateRequest req)
+    {
+        var actualizado = await negocio.ActualizarAsync(UsuarioId, req);
+        return actualizado is null ? NotFound() : Ok(actualizado);
+    }
+
+    // ── B7 (D4): Foto de perfil ─────────────────────────────────────────────
+    /// POST /api/usuarios/me/foto — recibe base64 (con o sin prefijo data URI),
+    /// la guarda como archivo físico en wwwroot/uploads/perfiles/{usuarioId}.jpg
+    /// y persiste solo la ruta relativa en la columna FotoPerfilUrl.
+    [HttpPost("me/foto")]
+    public async Task<ActionResult<UsuarioResponse>> SubirFoto([FromBody] SubirFotoRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.ImagenBase64))
+            return BadRequest(new { mensaje = "La imagen es obligatoria." });
+
+        // Acepta tanto "data:image/jpeg;base64,XXXX" como el base64 puro.
+        var base64Puro = req.ImagenBase64;
+        var comaIndex = base64Puro.IndexOf(',');
+        if (base64Puro.StartsWith("data:") && comaIndex >= 0)
+            base64Puro = base64Puro[(comaIndex + 1)..];
+
+        byte[] bytes;
+        try
+        {
+            bytes = Convert.FromBase64String(base64Puro);
+        }
+        catch (FormatException)
+        {
+            return BadRequest(new { mensaje = "El formato de la imagen no es un base64 válido." });
+        }
+
+        // Límite de 5 MB decodificados: evita que un payload gigante tumbe el server.
+        const int limiteBytes = 5 * 1024 * 1024;
+        if (bytes.Length > limiteBytes)
+            return BadRequest(new { mensaje = "La imagen no puede superar los 5 MB." });
+
+        var webRoot = string.IsNullOrEmpty(env.WebRootPath)
+            ? Path.Combine(env.ContentRootPath, "wwwroot")
+            : env.WebRootPath;
+
+        var carpeta = Path.Combine(webRoot, "uploads", "perfiles");
+        Directory.CreateDirectory(carpeta);
+
+        var nombreArchivo = $"{UsuarioId}.jpg";
+        var rutaFisica = Path.Combine(carpeta, nombreArchivo);
+        await System.IO.File.WriteAllBytesAsync(rutaFisica, bytes);
+
+        var rutaRelativa = $"/uploads/perfiles/{nombreArchivo}";
+        var actualizado = await negocio.ActualizarFotoAsync(UsuarioId, rutaRelativa);
+        return actualizado is null ? NotFound() : Ok(actualizado);
+    }
+
+    // ── D7: Dispositivos conectados ───────────────────────────────────────────
     /// GET /api/usuarios/me/sesiones — sesiones activas del usuario autenticado.
     [HttpGet("me/sesiones")]
     public async Task<ActionResult<List<SesionResponse>>> ListarSesiones()
@@ -30,17 +96,18 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
         var ok = await sesiones.RevocarSesionAsync(UsuarioId, id);
         if (!ok)
             return NotFound(new { mensaje = "La sesión no existe o no te pertenece." });
-
         return Ok(new { mensaje = "Sesión cerrada correctamente." });
     }
 
     // El alta de usuario se hace por POST /api/auth/register.
 
+    // GET /api/usuarios — lista todos los usuarios (solo Admin).
     [HttpGet]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<List<UsuarioResponse>>> ObtenerTodos()
         => Ok(await negocio.ObtenerTodosAsync());
 
+    // GET /api/usuarios/{id} — un usuario por Id (solo el propio o un Admin).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<UsuarioResponse>> ObtenerPorId(int id)
     {
@@ -49,6 +116,7 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
         return usuario is null ? NotFound() : Ok(usuario);
     }
 
+    // PUT /api/usuarios/{id} — actualiza el perfil (solo el propio o un Admin; 404 si no existe).
     [HttpPut("{id:int}")]
     public async Task<ActionResult<UsuarioResponse>> Actualizar(int id, [FromBody] UsuarioUpdateRequest req)
     {
@@ -57,6 +125,7 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
         return actualizado is null ? NotFound() : Ok(actualizado);
     }
 
+    // DELETE /api/usuarios/{id} — elimina un usuario (solo Admin; 404 si no existe).
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Eliminar(int id)

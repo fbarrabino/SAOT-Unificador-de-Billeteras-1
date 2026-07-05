@@ -1,5 +1,15 @@
+/**
+ * metodosPago.ts — Cliente de métodos de pago externos (tarjetas del usuario)
+ *
+ * Endpoints:
+ *   GET    /api/metodos-pago/usuario/{id}  → métodos de un usuario
+ *   POST   /api/metodos-pago               → alta de un método
+ *   DELETE /api/metodos-pago/{id}          → baja de un método
+ */
+
 import { api } from './client';
 
+// Método de pago externo tal como lo devuelve el backend (solo últimos 4 dígitos).
 export interface MetodoPagoExterno {
   metodoId: number;
   usuarioId: number;

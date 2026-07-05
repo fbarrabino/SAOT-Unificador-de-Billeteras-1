@@ -10,7 +10,7 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 /// actualización de saldo bajo una misma transacción: si algo falla se revierte
 /// todo y se devuelve 409 con el mensaje del negocio.
 ///
-/// BE-11 — Todos los endpoints requieren autenticación y, además, validan que
+/// Todos los endpoints requieren autenticación y, además, validan que
 /// la cuenta origen / movimiento pertenezca al usuario autenticado. Los
 /// usuarios con rol "Admin" saltean el check de ownership.
 [ApiController]
@@ -39,6 +39,17 @@ public class OperacionesController(
         return await EjecutarAsync(() => negocio.CambiarAsync(req));
     }
 
+    /// Transferencia a OTRO usuario (pago de un QR de cobro generado por alguien
+    /// más). Solo validamos que la cuenta ORIGEN sea del pagador autenticado; la
+    /// destino pertenece a quien generó el QR, así que NO se chequea su ownership.
+    [HttpPost("transferir")]
+    public async Task<ActionResult<OperacionResponse>> Transferir([FromBody] TransferirRequest req)
+    {
+        var owns = await EsCuentaPropiaAsync(req.CuentaOrigenId);
+        if (!owns.Allowed) return owns.Result!;
+        return await EjecutarAsync(() => negocio.TransferirAsync(req));
+    }
+
     [HttpPost("pagar-qr")]
     public async Task<ActionResult<OperacionResponse>> PagarQr([FromBody] PagarQrRequest req)
     {
@@ -47,7 +58,7 @@ public class OperacionesController(
         return await EjecutarAsync(() => negocio.PagarQrAsync(req));
     }
 
-    /// BE-09 — Anula un movimiento existente y revierte el saldo en una
+    /// Anula un movimiento existente y revierte el saldo en una
     /// misma transacción. La idempotencia la garantiza el flag Anulado:
     /// un segundo POST devuelve 409 con "ya estaba anulado".
     [HttpPost("{movimientoId:int}/anular")]

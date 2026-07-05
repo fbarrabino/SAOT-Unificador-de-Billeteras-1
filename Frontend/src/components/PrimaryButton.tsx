@@ -10,6 +10,7 @@ type Props = {
   style?: ViewStyle;
 };
 
+// Botón principal (CTA) con gradiente cian y glow; versión atenuada cuando está disabled.
 export function PrimaryButton({ label, onPress, disabled, style }: Props) {
   if (disabled) {
     return (

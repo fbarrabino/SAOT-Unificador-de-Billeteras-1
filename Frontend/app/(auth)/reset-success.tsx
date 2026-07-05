@@ -24,6 +24,7 @@ function CheckBig() {
   );
 }
 
+// Pantalla de éxito tras cambiar la contraseña; lleva de vuelta al login.
 export default function ResetSuccess() {
   return (
     <View style={styles.root}>

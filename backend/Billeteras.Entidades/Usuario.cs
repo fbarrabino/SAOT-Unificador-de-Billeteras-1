@@ -31,4 +31,16 @@ public class Usuario
 
     /// A8 — false al registrarse; pasa a true al validar el código de verificación de email.
     public bool EmailVerificado { get; set; } = false;
+
+    /// D1+D3 — Perfil persistido (B7).
+    [MaxLength(60)]
+    public string? Pais { get; set; }
+
+    [MaxLength(30)]
+    public string? Telefono { get; set; }
+
+    /// D4 — Ruta relativa del archivo físico en wwwroot (ej: "/uploads/perfiles/7.jpg").
+    /// No se guarda la imagen en la columna: solo la ruta.
+    [MaxLength(500)]
+    public string? FotoPerfilUrl { get; set; }
 }

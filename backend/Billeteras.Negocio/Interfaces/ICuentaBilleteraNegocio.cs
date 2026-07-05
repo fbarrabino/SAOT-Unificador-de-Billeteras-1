@@ -2,13 +2,14 @@ using Billeteras.Negocio.Dtos;
 
 namespace Billeteras.Negocio.Interfaces;
 
+/// Servicio de negocio de CuentaBilletera (cuentas del usuario, vincular/desvincular).
 public interface ICuentaBilleteraNegocio
 {
-    Task<List<CuentaBilleteraResponse>> ObtenerTodosAsync();
-    Task<CuentaBilleteraResponse?> ObtenerPorIdAsync(int id);
-    Task<CuentaBilleteraResponse> CrearAsync(int usuarioId, CrearCuentaBilleteraRequest req);
-    Task<CuentaBilleteraResponse?> ActualizarAsync(int id, CuentaBilleteraRequest req);
-    Task<bool> EliminarAsync(int id);
+    Task<List<CuentaBilleteraResponse>> ObtenerTodosAsync();                             // Lista todas las cuentas como DTO.
+    Task<CuentaBilleteraResponse?> ObtenerPorIdAsync(int id);                            // Una cuenta por Id (null si no existe).
+    Task<CuentaBilleteraResponse> CrearAsync(int usuarioId, CrearCuentaBilleteraRequest req); // Crea una cuenta para el usuario.
+    Task<CuentaBilleteraResponse?> ActualizarAsync(int id, CuentaBilleteraRequest req);  // Actualiza una cuenta (null si no existe).
+    Task<bool> EliminarAsync(int id);                                                   // Elimina la cuenta; false si no existía.
 
     /// <summary>Obtiene solo las cuentas Activas del usuario.</summary>
     Task<List<CuentaBilleteraResponse>> ObtenerActivasDeUsuarioAsync(int usuarioId);

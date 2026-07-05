@@ -9,6 +9,7 @@ namespace Billeteras.Datos;
 /// (upgrade del //Quitar con Inyeccion de Dependencias del profe: ya no se hardcodea).
 public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
 {
+    // Trae todos los usuarios con un SELECT directo y los mapea a objetos.
     public async Task<List<Usuario>> ObtenerTodosAsync()
     {
         var lista = new List<Usuario>();
@@ -24,6 +25,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return lista;
     }
 
+    // Busca un usuario por Id con parámetro @id (null si no hay fila).
     public async Task<Usuario?> ObtenerPorIdAsync(int id)
     {
         const string sql = "SELECT UsuarioId, Nombre, Apellido, Email, PasswordHash, FechaAlta FROM Usuario WHERE UsuarioId = @id;";
@@ -36,6 +38,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return await reader.ReadAsync() ? Map(reader) : null;
     }
 
+    // Busca un usuario por email (clave del login); null si no existe.
     public async Task<Usuario?> ObtenerPorEmailAsync(string email)
     {
         const string sql = "SELECT UsuarioId, Nombre, Apellido, Email, PasswordHash, FechaAlta FROM Usuario WHERE Email = @email;";
@@ -48,6 +51,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return await reader.ReadAsync() ? Map(reader) : null;
     }
 
+    // Inserta un usuario y devuelve el Id nuevo vía SCOPE_IDENTITY().
     public async Task<int> InsertarAsync(Usuario entidad)
     {
         // FechaAlta queda en manos del default GETDATE() de la DB.
@@ -65,6 +69,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return (int)(await cmd.ExecuteScalarAsync())!;
     }
 
+    // Actualiza los datos del usuario; true si afectó alguna fila.
     public async Task<bool> ActualizarAsync(Usuario entidad)
     {
         const string sql = @"UPDATE Usuario
@@ -82,6 +87,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Elimina el usuario por Id (hard delete); true si borró alguna fila.
     public async Task<bool> EliminarAsync(int id)
     {
         // Hard delete (TP-04). El soft delete es de un TP posterior.
@@ -94,6 +100,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Devuelve los nombres de rol del usuario (JOIN UsuarioRol → Rol).
     public async Task<List<string>> ObtenerNombresRolesAsync(int usuarioId)
     {
         var roles = new List<string>();
@@ -112,6 +119,7 @@ public class UsuarioRepositoryAdo(string connectionString) : IUsuarioRepository
         return roles;
     }
 
+    // Mapea la fila actual del reader a un objeto Usuario.
     private static Usuario Map(SqlDataReader reader) => new()
     {
         UsuarioId = reader.GetInt32(reader.GetOrdinal("UsuarioId")),

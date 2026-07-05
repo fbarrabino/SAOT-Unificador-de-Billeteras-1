@@ -7,6 +7,7 @@ type Props = {
   onChange?: (code: string) => void;
 };
 
+// Input de código de N dígitos (una celda por dígito) con auto-avance y borrado hacia atrás.
 export function CodeInput({ length = 6, onChange }: Props) {
   const [values, setValues] = useState<string[]>(Array(length).fill(''));
   const refs = useRef<Array<TextInput | null>>([]);
