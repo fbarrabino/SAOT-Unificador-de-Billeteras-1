@@ -113,7 +113,6 @@ export default function WalletDetailScreen() {
 
                 <View style={styles.transactionsHeader}>
                     <Text style={type.h4}>Transacciones</Text>
-                    <Text style={[type.label, { textAlign: 'right', fontSize: 10 }]}>Esta{'\n'}billetera</Text>
                 </View>
 
                 <View style={styles.transactionsList}>
