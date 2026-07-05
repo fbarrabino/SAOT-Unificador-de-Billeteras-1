@@ -19,6 +19,7 @@ import { register } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { useSession } from '@/context/SessionContext';
 
+// Pantalla de registro: crea el usuario, valida los campos e inicia sesión al terminar.
 export default function Signup() {
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');

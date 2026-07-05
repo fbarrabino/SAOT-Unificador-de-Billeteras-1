@@ -5,8 +5,11 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Negocio;
 
+/// Lógica de negocio del módulo de soporte (maestro-detalle): listar tickets del
+/// usuario, ver el detalle con su hilo de mensajes y crear un ticket nuevo.
 public class TicketSoporteNegocio(ITicketSoporteRepository repo) : ITicketSoporteNegocio
 {
+    // Lista los tickets del usuario en formato resumen (con la cantidad de mensajes de cada uno).
     public async Task<List<TicketResumenResponse>> ObtenerMisAsync(int usuarioId)
     {
         var tickets = await repo.GetByUsuarioIdAsync(usuarioId);
@@ -28,12 +31,14 @@ public class TicketSoporteNegocio(ITicketSoporteRepository repo) : ITicketSoport
         return resultado;
     }
 
+    // Devuelve el detalle del ticket con todos sus mensajes y adjuntos (null si no existe).
     public async Task<TicketDetalleResponse?> ObtenerDetalleAsync(int ticketId)
     {
         var ticket = await repo.ObtenerConMensajesAsync(ticketId);
         return ticket is null ? null : MapearDetalle(ticket);
     }
 
+    // Crea un ticket con su primer mensaje y adjuntos en una transacción, y devuelve el detalle.
     public async Task<TicketDetalleResponse> CrearAsync(int usuarioId, CrearTicketRequest req)
     {
         // 1) Construir entidades
@@ -72,6 +77,7 @@ public class TicketSoporteNegocio(ITicketSoporteRepository repo) : ITicketSoport
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
+    // Mapea el ticket y su hilo (mensajes ordenados por fecha, con sus adjuntos) al DTO de detalle.
     private static TicketDetalleResponse MapearDetalle(TicketSoporte t) =>
         new(
             t.TicketId,

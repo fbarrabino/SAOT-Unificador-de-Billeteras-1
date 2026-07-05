@@ -15,6 +15,7 @@ public class VerificacionNegocio(
     private const int ThrottleSegundos = 60;
     private const int ExpiracionMinutos = 15;
 
+    // Genera y "envía" un código para el email/tipo, con throttle de 60s y sin revelar si el email existe.
     public async Task<SolicitarCodigoResult> SolicitarCodigoAsync(string email, string tipo)
     {
         var usuario = await repoUsuarios.ObtenerPorEmailAsync(email);
@@ -53,6 +54,7 @@ public class VerificacionNegocio(
         return new SolicitarCodigoResult(true, "Si el email existe, te enviamos un código.");
     }
 
+    // Valida el código de reset y, si es vigente, actualiza la contraseña (BCrypt) y lo marca usado.
     public async Task<ValidarCodigoResult> ResetearPasswordAsync(string email, string codigo, string nuevaPassword)
     {
         var usuario = await repoUsuarios.ObtenerPorEmailAsync(email);
@@ -70,6 +72,7 @@ public class VerificacionNegocio(
         return new ValidarCodigoResult(true, "Contraseña actualizada correctamente.");
     }
 
+    // Valida el código de verificación de email y, si es vigente, marca EmailVerificado=true (A8).
     public async Task<ValidarCodigoResult> VerificarEmailAsync(string email, string codigo)
     {
         var usuario = await repoUsuarios.ObtenerPorEmailAsync(email);
@@ -90,6 +93,7 @@ public class VerificacionNegocio(
         return new ValidarCodigoResult(true, "Email verificado correctamente.");
     }
 
+    // Genera un código aleatorio de 6 dígitos (con ceros a la izquierda).
     private static string GenerarCodigo()
         => Random.Shared.Next(0, 1_000_000).ToString("D6");
 

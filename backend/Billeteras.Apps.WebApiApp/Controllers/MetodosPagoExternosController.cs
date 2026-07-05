@@ -6,11 +6,13 @@ using Billeteras.Datos.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// API de métodos de pago externos (tarjetas del usuario). Todo autenticado.
 [Route("api/metodos-pago")]
 [ApiController]
 [Authorize]
 public class MetodosPagoExternosController(IMetodoPagoExternoRepository repository) : ControllerBase
 {
+    // GET /api/metodos-pago/usuario/{id} — métodos de pago de un usuario.
     [HttpGet("usuario/{usuarioId}")]
     public async Task<IActionResult> GetByUsuario(int usuarioId)
     {
@@ -26,6 +28,7 @@ public class MetodosPagoExternosController(IMetodoPagoExternoRepository reposito
         return Ok(dtos);
     }
 
+    // POST /api/metodos-pago — registra un método de pago externo.
     [HttpPost]
     public async Task<IActionResult> Create(CreateMetodoPagoExternoDto dto)
     {
@@ -41,6 +44,7 @@ public class MetodosPagoExternosController(IMetodoPagoExternoRepository reposito
         return Ok(creado);
     }
 
+    // DELETE /api/metodos-pago/{id} — elimina un método de pago por Id.
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

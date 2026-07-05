@@ -7,6 +7,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { ToggleRow } from '@/components/ToggleRow';
 import { colors, fonts } from '@/theme/tokens';
 
+// Perfil — pantalla de preferencias de notificaciones (push y email) con toggles.
 export default function ProfileNotificationsScreen() {
     // Estados PUSH
     const [pushTransacciones, setPushTransacciones] = useState(true);

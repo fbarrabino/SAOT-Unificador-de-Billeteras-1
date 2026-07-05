@@ -20,6 +20,7 @@ public record LoginRequest(
     [Required] string Password,
     string? DispositivoNombre = null);
 
+/// Respuesta de POST /api/auth/login: el JWT, cuándo expira y el usuario logueado.
 public record LoginResponse(string Token, DateTime ExpiresAt, UsuarioResponse Usuario);
 
 /// Cuerpo de POST /api/auth/forgot-password.

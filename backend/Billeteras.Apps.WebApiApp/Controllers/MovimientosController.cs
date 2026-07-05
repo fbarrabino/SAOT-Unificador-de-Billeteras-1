@@ -6,6 +6,8 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// API del historial de movimientos. Todo autenticado; los endpoints /me operan
+// solo sobre las cuentas del usuario del token, el listado global es solo Admin.
 [ApiController]
 [Route("api/movimientos")]
 [Authorize]
@@ -91,6 +93,7 @@ public class MovimientosController(
         }
     }
 
+    // GET /api/movimientos/{id} — un movimiento por Id (404 si no existe).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<MovimientoResponse>> ObtenerPorId(int id)
     {
@@ -98,6 +101,7 @@ public class MovimientosController(
         return movimiento is null ? NotFound() : Ok(movimiento);
     }
 
+    // POST /api/movimientos — crea un movimiento suelto y devuelve su ubicación.
     [HttpPost]
     public async Task<ActionResult<MovimientoResponse>> Crear([FromBody] MovimientoRequest req)
     {
@@ -105,6 +109,7 @@ public class MovimientosController(
         return CreatedAtAction(nameof(ObtenerPorId), new { id = creado.MovimientoId }, creado);
     }
 
+    // PUT /api/movimientos/{id} — actualiza un movimiento (404 si no existe).
     [HttpPut("{id:int}")]
     public async Task<ActionResult<MovimientoResponse>> Actualizar(int id, [FromBody] MovimientoRequest req)
     {
@@ -112,6 +117,7 @@ public class MovimientosController(
         return actualizado is null ? NotFound() : Ok(actualizado);
     }
 
+    // DELETE /api/movimientos/{id} — elimina un movimiento (404 si no existe).
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
         => await negocio.EliminarAsync(id) ? NoContent() : NotFound();

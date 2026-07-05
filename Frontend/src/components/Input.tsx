@@ -8,6 +8,7 @@ type Props = TextInputProps & {
   password?: boolean;
 };
 
+// Campo de texto con label opcional y, si password, un ojo para mostrar/ocultar.
 export function Input({ label, password, style, ...rest }: Props) {
   const [hidden, setHidden] = useState(!!password);
   return (

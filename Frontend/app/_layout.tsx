@@ -1,3 +1,4 @@
+// Layout raíz de la app: carga las fuentes, monta los providers globales y define el Stack de navegación.
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';

@@ -18,6 +18,8 @@ import { colors, fonts, type } from '@/theme/tokens';
 import { useWallets } from '@/context/WalletsContext';
 import { fmt } from '@/utils/format';
 
+// Tab Billeteras: lista las billeteras vinculadas con su saldo, el balance
+// combinado y accesos para conectar otra o ver el detalle de cada una.
 export default function Wallets() {
   const { wallets, isLoading, refresh } = useWallets();
   const total = wallets.reduce((s, w) => s + w.bal, 0);

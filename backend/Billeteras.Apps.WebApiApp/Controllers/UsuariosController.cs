@@ -7,6 +7,8 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// API REST de usuarios: gestión del propio perfil, sesiones/dispositivos (D7) y
+// operaciones de Admin. Todo autenticado; cada acción valida ownership o rol Admin.
 [ApiController]
 [Route("api/usuarios")]
 [Authorize]
@@ -98,11 +100,14 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
     }
 
     // El alta de usuario se hace por POST /api/auth/register.
+
+    // GET /api/usuarios — lista todos los usuarios (solo Admin).
     [HttpGet]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<List<UsuarioResponse>>> ObtenerTodos()
         => Ok(await negocio.ObtenerTodosAsync());
 
+    // GET /api/usuarios/{id} — un usuario por Id (solo el propio o un Admin).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<UsuarioResponse>> ObtenerPorId(int id)
     {
@@ -111,6 +116,7 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
         return usuario is null ? NotFound() : Ok(usuario);
     }
 
+    // PUT /api/usuarios/{id} — actualiza el perfil (solo el propio o un Admin; 404 si no existe).
     [HttpPut("{id:int}")]
     public async Task<ActionResult<UsuarioResponse>> Actualizar(int id, [FromBody] UsuarioUpdateRequest req)
     {
@@ -119,6 +125,7 @@ public class UsuariosController(IUsuarioNegocio negocio, ISesionNegocio sesiones
         return actualizado is null ? NotFound() : Ok(actualizado);
     }
 
+    // DELETE /api/usuarios/{id} — elimina un usuario (solo Admin; 404 si no existe).
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Eliminar(int id)

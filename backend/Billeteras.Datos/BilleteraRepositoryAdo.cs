@@ -7,6 +7,7 @@ namespace Billeteras.Datos;
 /// Implementación ADO.NET puro del repositorio de Billetera.
 public class BilleteraRepositoryAdo(string connectionString) : IBilleteraRepository
 {
+    // Trae todas las billeteras con un SELECT directo y las mapea a objetos.
     public async Task<List<Billetera>> ObtenerTodosAsync()
     {
         var lista = new List<Billetera>();
@@ -22,6 +23,7 @@ public class BilleteraRepositoryAdo(string connectionString) : IBilleteraReposit
         return lista;
     }
 
+    // Busca una billetera por Id con parámetro @id (null si no hay fila).
     public async Task<Billetera?> ObtenerPorIdAsync(int id)
     {
         const string sql = "SELECT BilleteraId, Nombre, LogoUrl FROM Billetera WHERE BilleteraId = @id;";
@@ -34,6 +36,7 @@ public class BilleteraRepositoryAdo(string connectionString) : IBilleteraReposit
         return await reader.ReadAsync() ? Map(reader) : null;
     }
 
+    // Inserta una billetera y devuelve el Id nuevo vía SCOPE_IDENTITY().
     public async Task<int> InsertarAsync(Billetera entidad)
     {
         const string sql = @"INSERT INTO Billetera (Nombre, LogoUrl)
@@ -48,6 +51,7 @@ public class BilleteraRepositoryAdo(string connectionString) : IBilleteraReposit
         return (int)(await cmd.ExecuteScalarAsync())!;
     }
 
+    // Actualiza nombre y logo de la billetera; true si afectó alguna fila.
     public async Task<bool> ActualizarAsync(Billetera entidad)
     {
         const string sql = @"UPDATE Billetera
@@ -63,6 +67,7 @@ public class BilleteraRepositoryAdo(string connectionString) : IBilleteraReposit
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Elimina la billetera por Id; true si borró alguna fila.
     public async Task<bool> EliminarAsync(int id)
     {
         const string sql = "DELETE FROM Billetera WHERE BilleteraId = @id;";
@@ -74,6 +79,7 @@ public class BilleteraRepositoryAdo(string connectionString) : IBilleteraReposit
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Mapea la fila actual del reader a un objeto Billetera.
     private static Billetera Map(SqlDataReader reader) => new()
     {
         BilleteraId = reader.GetInt32(reader.GetOrdinal("BilleteraId")),

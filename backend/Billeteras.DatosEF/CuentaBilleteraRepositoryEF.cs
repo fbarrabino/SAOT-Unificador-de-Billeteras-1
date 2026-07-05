@@ -8,18 +8,21 @@ namespace Billeteras.DatosEF;
 /// Incluye las navegaciones Billetera y Usuario con .Include(...).
 public class CuentaBilleteraRepositoryEF(BilleterasContext ctx) : ICuentaBilleteraRepository
 {
+    // Trae todas las cuentas con su billetera y usuario cargados (Include).
     public async Task<List<CuentaBilletera>> ObtenerTodosAsync()
         => await ctx.CuentasBilletera
             .Include(c => c.Billetera)
             .Include(c => c.Usuario)
             .ToListAsync();
 
+    // Busca una cuenta por Id con billetera y usuario cargados (null si no existe).
     public async Task<CuentaBilletera?> ObtenerPorIdAsync(int id)
         => await ctx.CuentasBilletera
             .Include(c => c.Billetera)
             .Include(c => c.Usuario)
             .FirstOrDefaultAsync(c => c.CuentaBilleteraId == id);
 
+    // Inserta una cuenta nueva y devuelve el Id generado.
     public async Task<int> InsertarAsync(CuentaBilletera entidad)
     {
         ctx.CuentasBilletera.Add(entidad);
@@ -27,12 +30,14 @@ public class CuentaBilleteraRepositoryEF(BilleterasContext ctx) : ICuentaBillete
         return entidad.CuentaBilleteraId;
     }
 
+    // Actualiza una cuenta; true si se guardó algún cambio.
     public async Task<bool> ActualizarAsync(CuentaBilletera entidad)
     {
         ctx.CuentasBilletera.Update(entidad);
         return await ctx.SaveChangesAsync() > 0;
     }
 
+    // Elimina la cuenta por Id (hard delete); false si no existía.
     public async Task<bool> EliminarAsync(int id)
     {
         var entidad = await ctx.CuentasBilletera.FindAsync(id);
@@ -41,6 +46,8 @@ public class CuentaBilleteraRepositoryEF(BilleterasContext ctx) : ICuentaBillete
         return await ctx.SaveChangesAsync() > 0;
     }
 
+    // Vincula una billetera al usuario dentro de una transacción: valida existencia
+    // y que no haya ya un vínculo activo, crea la cuenta y recarga navegaciones.
     public async Task<CuentaBilletera> VincularAsync(int usuarioId, int billeteraId, string? alias)
     {
         await using var tx = await ctx.Database.BeginTransactionAsync();
@@ -85,6 +92,7 @@ public class CuentaBilleteraRepositoryEF(BilleterasContext ctx) : ICuentaBillete
         }
     }
 
+    // Desvincula la cuenta (soft-delete a estado "Desvinculada") validando dueño y estado.
     public async Task<CuentaBilletera> DesvincularAsync(int cuentaBilleteraId, int usuarioId)
     {
         await using var tx = await ctx.Database.BeginTransactionAsync();

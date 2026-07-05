@@ -4,10 +4,14 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Negocio;
 
+/// Orquesta las operaciones transaccionales: llama al repositorio (que ejecuta la
+/// transacción SQL) y luego espeja el evento en el grafo Neo4j (BD-04). El fallo
+/// del grafo nunca rompe la operación: SQL queda como fuente de verdad.
 public class OperacionesNegocio(
     IOperacionesRepository repo,
     INeo4jService neo4j) : IOperacionesNegocio
 {
+    // Enviar dinero: ejecuta el egreso/ingreso en SQL y, si hay destino, crea la relación TRANSFIRIO en Neo4j.
     public async Task<OperacionResponse> EnviarAsync(EnviarRequest req)
     {
         var (movsIds, saldoOrigen, saldoDestino) = await repo.EnviarAsync(
@@ -47,6 +51,7 @@ public class OperacionesNegocio(
             SaldoDestinoFinal: saldoDestino);
     }
 
+    // Cambiar entre cuentas propias: mueve el saldo en SQL y espeja TRANSFIRIO en Neo4j.
     public async Task<OperacionResponse> CambiarAsync(CambiarRequest req)
     {
         var (egId, inId, saldoOrigen, saldoDestino) = await repo.CambiarAsync(
@@ -83,6 +88,7 @@ public class OperacionesNegocio(
             SaldoDestinoFinal: saldoDestino);
     }
 
+    // Transferir a otro usuario (pago de QR de cobro): egreso+ingreso en SQL y TRANSFIRIO en Neo4j.
     public async Task<OperacionResponse> TransferirAsync(TransferirRequest req)
     {
         var (egId, inId, saldoOrigen, saldoDestino) = await repo.TransferirAsync(
@@ -120,6 +126,7 @@ public class OperacionesNegocio(
             SaldoDestinoFinal: saldoDestino);
     }
 
+    // Pagar QR a comercio: egreso en SQL y, si vino el comercio, crea Comercio + PAGO_EN + ACEPTA en Neo4j.
     public async Task<OperacionResponse> PagarQrAsync(PagarQrRequest req)
     {
         var (movId, saldo) = await repo.PagarQrAsync(
@@ -169,6 +176,7 @@ public class OperacionesNegocio(
             SaldoDestinoFinal: null);
     }
 
+    // Anular un movimiento: marca anulado y revierte el saldo en SQL (no toca el grafo).
     public async Task<OperacionResponse> AnularAsync(int movimientoId)
     {
         var (movId, saldo) = await repo.AnularAsync(movimientoId);
@@ -179,6 +187,7 @@ public class OperacionesNegocio(
             SaldoDestinoFinal: null);
     }
 
+    // Ejecuta una acción contra Neo4j "a prueba de fallos": si tira error, lo loguea y sigue.
     private static async Task SafeAsync(string contexto, Func<Task> accion)
     {
         try

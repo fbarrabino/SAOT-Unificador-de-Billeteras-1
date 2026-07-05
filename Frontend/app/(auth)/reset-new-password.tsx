@@ -32,6 +32,7 @@ function Rule({ ok, text }: { ok?: boolean; text: string }) {
   );
 }
 
+// Pantalla de nueva contraseña: valida requisitos y llama a reset-password con email+código.
 export default function ResetNewPassword() {
   const { email, codigo } = useLocalSearchParams<{ email: string; codigo: string }>();
   const [pwd, setPwd] = React.useState('');

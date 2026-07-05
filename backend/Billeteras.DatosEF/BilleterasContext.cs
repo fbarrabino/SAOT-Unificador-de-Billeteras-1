@@ -33,6 +33,8 @@ public class BilleterasContext(DbContextOptions<BilleterasContext> options) : Db
     public DbSet<CodigoVerificacion> CodigosVerificacion => Set<CodigoVerificacion>();
     public DbSet<UsuarioSesion> UsuariosSesiones => Set<UsuarioSesion>();
 
+    // Configura por Fluent API lo que EF no deduce solo: índices únicos, defaults,
+    // claves compuestas (N:M) y el comportamiento de borrado (cascade/no-action) de las FK.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Configuración Base

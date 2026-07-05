@@ -7,11 +7,14 @@ using Billeteras.Datos.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// API de la agenda de contactos. Todo autenticado; el dueño de la agenda se toma
+// del JWT (no del body) para que nadie pueda operar sobre contactos ajenos.
 [Route("api/contactos")]
 [ApiController]
 [Authorize]
 public class ContactosController(IContactoRepository repository) : ControllerBase
 {
+    // GET /api/contactos/me — contactos del usuario del token.
     [HttpGet("me")]
     public async Task<IActionResult> GetMisContactos()
     {
@@ -30,6 +33,7 @@ public class ContactosController(IContactoRepository repository) : ControllerBas
         return Ok(dtos);
     }
 
+    // GET /api/contactos/{id} — contactos de otro usuario (solo el propio dueño o un Admin).
     [HttpGet("{usuarioPropietarioId:int}")]
     public async Task<IActionResult> GetContactos(int usuarioPropietarioId)
     {
@@ -51,6 +55,7 @@ public class ContactosController(IContactoRepository repository) : ControllerBas
         return Ok(dtos);
     }
 
+    // POST /api/contactos — agrega un contacto al usuario del token (no permite autocontacto).
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateContactoDto dto)
     {
@@ -75,6 +80,7 @@ public class ContactosController(IContactoRepository repository) : ControllerBas
         return Ok(creado);
     }
 
+    // DELETE /api/contactos/{contactoId} — borra un contacto de la agenda del usuario del token.
     [HttpDelete("{usuarioContactoId:int}")]
     public async Task<IActionResult> DeleteMiContacto(int usuarioContactoId)
     {
@@ -85,6 +91,7 @@ public class ContactosController(IContactoRepository repository) : ControllerBas
         return NoContent();
     }
 
+    // DELETE /api/contactos/{propietarioId}/{contactoId} — borra un contacto (solo el dueño o un Admin).
     [HttpDelete("{usuarioPropietarioId:int}/{usuarioContactoId:int}")]
     public async Task<IActionResult> Delete(int usuarioPropietarioId, int usuarioContactoId)
     {
@@ -98,6 +105,7 @@ public class ContactosController(IContactoRepository repository) : ControllerBas
         return NoContent();
     }
 
+    // Extrae el UsuarioId del token JWT (0 si no se pudo leer).
     private int ObtenerUsuarioIdActual()
     {
         var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

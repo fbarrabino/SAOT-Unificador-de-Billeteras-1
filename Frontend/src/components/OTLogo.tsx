@@ -6,6 +6,7 @@ type Props = {
   color?: string;
 };
 
+// Logo "OT" de la marca dibujado en SVG (escalable y con color configurable).
 export function OTLogo({ size = 60, color = '#06121A' }: Props) {
   const height = size;
   const width = (size * 208) / 164;

@@ -9,18 +9,21 @@ namespace Billeteras.DatosEF;
 /// NOTA: NO toca el SaldoActual de la cuenta (eso es TP-06).
 public class MovimientoRepositoryEF(BilleterasContext ctx) : IMovimientoRepository
 {
+    // Trae todos los movimientos con su categoría y cuenta cargadas (Include).
     public async Task<List<Movimiento>> ObtenerTodosAsync()
         => await ctx.Movimientos
             .Include(m => m.Categoria)
             .Include(m => m.CuentaBilletera)
             .ToListAsync();
 
+    // Busca un movimiento por Id con categoría y cuenta cargadas (null si no existe).
     public async Task<Movimiento?> ObtenerPorIdAsync(int id)
         => await ctx.Movimientos
             .Include(m => m.Categoria)
             .Include(m => m.CuentaBilletera)
             .FirstOrDefaultAsync(m => m.MovimientoId == id);
 
+    // Inserta un movimiento nuevo y devuelve el Id generado.
     public async Task<int> InsertarAsync(Movimiento entidad)
     {
         ctx.Movimientos.Add(entidad);
@@ -28,12 +31,14 @@ public class MovimientoRepositoryEF(BilleterasContext ctx) : IMovimientoReposito
         return entidad.MovimientoId;
     }
 
+    // Actualiza un movimiento; true si se guardó algún cambio.
     public async Task<bool> ActualizarAsync(Movimiento entidad)
     {
         ctx.Movimientos.Update(entidad);
         return await ctx.SaveChangesAsync() > 0;
     }
 
+    // Elimina el movimiento por Id; false si no existía.
     public async Task<bool> EliminarAsync(int id)
     {
         var entidad = await ctx.Movimientos.FindAsync(id);

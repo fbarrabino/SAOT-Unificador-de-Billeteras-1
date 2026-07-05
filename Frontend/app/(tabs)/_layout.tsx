@@ -118,6 +118,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
+// Layout de las 4 tabs principales (Inicio, Billeteras, Actividad, Perfil) con
+// una tab bar custom y el botón central elevado de "Pagar QR".
 export default function TabsLayout() {
   return (
     <Tabs

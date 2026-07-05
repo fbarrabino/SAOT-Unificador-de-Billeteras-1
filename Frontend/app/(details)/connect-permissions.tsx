@@ -1,3 +1,4 @@
+// Vincular billetera — paso de permisos que el usuario concede antes de sincronizar.
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';

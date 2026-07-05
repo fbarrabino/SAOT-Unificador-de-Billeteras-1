@@ -7,6 +7,7 @@ namespace Billeteras.Datos;
 /// Implementación ADO.NET puro del repositorio de Categoria.
 public class CategoriaRepositoryAdo(string connectionString) : ICategoriaRepository
 {
+    // Trae todas las categorías con un SELECT directo y las mapea a objetos.
     public async Task<List<Categoria>> ObtenerTodosAsync()
     {
         var lista = new List<Categoria>();
@@ -22,6 +23,7 @@ public class CategoriaRepositoryAdo(string connectionString) : ICategoriaReposit
         return lista;
     }
 
+    // Busca una categoría por Id con parámetro @id (null si no hay fila).
     public async Task<Categoria?> ObtenerPorIdAsync(int id)
     {
         const string sql = "SELECT CategoriaId, Nombre, Tipo FROM Categoria WHERE CategoriaId = @id;";
@@ -34,6 +36,7 @@ public class CategoriaRepositoryAdo(string connectionString) : ICategoriaReposit
         return await reader.ReadAsync() ? Map(reader) : null;
     }
 
+    // Inserta una categoría y devuelve el Id nuevo vía SCOPE_IDENTITY().
     public async Task<int> InsertarAsync(Categoria entidad)
     {
         const string sql = @"INSERT INTO Categoria (Nombre, Tipo)
@@ -48,6 +51,7 @@ public class CategoriaRepositoryAdo(string connectionString) : ICategoriaReposit
         return (int)(await cmd.ExecuteScalarAsync())!;
     }
 
+    // Actualiza nombre y tipo de la categoría; true si afectó alguna fila.
     public async Task<bool> ActualizarAsync(Categoria entidad)
     {
         const string sql = @"UPDATE Categoria
@@ -63,6 +67,7 @@ public class CategoriaRepositoryAdo(string connectionString) : ICategoriaReposit
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Elimina la categoría por Id; true si borró alguna fila.
     public async Task<bool> EliminarAsync(int id)
     {
         const string sql = "DELETE FROM Categoria WHERE CategoriaId = @id;";
@@ -74,6 +79,7 @@ public class CategoriaRepositoryAdo(string connectionString) : ICategoriaReposit
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Mapea la fila actual del reader a un objeto Categoria.
     private static Categoria Map(SqlDataReader reader) => new()
     {
         CategoriaId = reader.GetInt32(reader.GetOrdinal("CategoriaId")),

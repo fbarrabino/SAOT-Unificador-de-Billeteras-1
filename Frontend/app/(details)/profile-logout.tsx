@@ -6,6 +6,7 @@ import { AuroraBackground } from '@/components/AuroraBackground';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 import { useSession } from '@/context/SessionContext';
 
+// Perfil — pantalla de confirmación para cerrar sesión y volver al login.
 export default function ProfileLogoutScreen() {
     const { logout } = useSession();
     return (

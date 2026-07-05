@@ -8,6 +8,7 @@ namespace Billeteras.Datos;
 /// Los SELECT hacen INNER JOIN para traer el nombre de la categoría y el alias de la cuenta.
 public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepository
 {
+    // SELECT reutilizable con los JOIN a Categoria y CuentaBilletera (nombre y alias).
     private const string SelectBase = @"
         SELECT m.MovimientoId, m.CuentaBilleteraId, m.CategoriaId, m.Fecha, m.Descripcion, m.Monto, m.Tipo,
                cat.Nombre AS CategoriaNombre,
@@ -16,6 +17,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         INNER JOIN Categoria cat ON cat.CategoriaId = m.CategoriaId
         INNER JOIN CuentaBilletera c ON c.CuentaBilleteraId = m.CuentaBilleteraId";
 
+    // Trae todos los movimientos (con nombre de categoría y alias de cuenta).
     public async Task<List<Movimiento>> ObtenerTodosAsync()
     {
         var lista = new List<Movimiento>();
@@ -31,6 +33,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         return lista;
     }
 
+    // Busca un movimiento por Id con parámetro @id (null si no hay fila).
     public async Task<Movimiento?> ObtenerPorIdAsync(int id)
     {
         const string sql = SelectBase + " WHERE m.MovimientoId = @id;";
@@ -43,6 +46,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         return await reader.ReadAsync() ? Map(reader) : null;
     }
 
+    // Inserta un movimiento y devuelve el Id nuevo vía SCOPE_IDENTITY().
     public async Task<int> InsertarAsync(Movimiento entidad)
     {
         // No se actualiza el SaldoActual de la cuenta (eso es TP-06).
@@ -62,6 +66,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         return (int)(await cmd.ExecuteScalarAsync())!;
     }
 
+    // Actualiza los datos del movimiento; true si afectó alguna fila.
     public async Task<bool> ActualizarAsync(Movimiento entidad)
     {
         const string sql = @"UPDATE Movimiento
@@ -82,6 +87,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Elimina el movimiento por Id; true si borró alguna fila.
     public async Task<bool> EliminarAsync(int id)
     {
         const string sql = "DELETE FROM Movimiento WHERE MovimientoId = @id;";
@@ -94,6 +100,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
     }
 
     // ─── Paginado + filtrado REAL en la base (rúbrica 3.4 y 3.5) ─────────────────
+    // Arma un WHERE dinámico parametrizado y devuelve la página pedida + el total.
     public async Task<(List<Movimiento> Items, int TotalCount)> ObtenerPaginadoPorUsuarioAsync(
         int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
     {
@@ -155,6 +162,7 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
             cmd.Parameters.AddWithValue("@texto", $"%{texto}%");
     }
 
+    // Mapea la fila del reader a Movimiento, con navegaciones parciales del JOIN.
     private static Movimiento Map(SqlDataReader reader) => new()
     {
         MovimientoId = reader.GetInt32(reader.GetOrdinal("MovimientoId")),

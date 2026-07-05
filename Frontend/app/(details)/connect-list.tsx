@@ -1,3 +1,4 @@
+// Vincular billetera — lista/buscador de billeteras disponibles para conectar.
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';

@@ -1,3 +1,4 @@
+// Perfil — pantalla de edición de datos personales del usuario logueado.
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';

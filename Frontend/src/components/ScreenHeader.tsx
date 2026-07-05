@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, type } from '@/theme/tokens';
 
+// Encabezado de pantalla: flecha de volver (usa onBack o el back del router) + título centrado.
 export function ScreenHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
     <View style={styles.container}>
