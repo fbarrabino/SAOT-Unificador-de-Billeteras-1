@@ -213,9 +213,16 @@ app.Use(async (context, next) =>
 if (!app.Environment.IsDevelopment())
     app.UseHsts();
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
 app.UseCors("Restrictiva");
+// En Development, /api/* no redirige a HTTPS: el redirect cruza de origen
+// (5001 -> 7001) y ese salto rompe el preflight CORS (el navegador manda
+// Origin: null en el redirect, que ninguna política de CORS puede permitir).
+// Fuera de Development, o para rutas que no sean /api, el comportamiento
+// no cambia.
+app.UseWhen(
+    context => !(app.Environment.IsDevelopment() && context.Request.Path.StartsWithSegments("/api")),
+    branch => branch.UseHttpsRedirection());
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 

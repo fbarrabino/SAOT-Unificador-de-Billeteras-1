@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { AuroraBackground } from '@/components/AuroraBackground';
 import { colors, fonts, gradients, radii } from '@/theme/tokens';
 import { useSession } from '@/context/SessionContext';
 import { useWallets } from '@/context/WalletsContext';
+import { urlFotoPerfil } from '@/api/usuarios';
 
 function RowIcon({ children, color = colors.cyan }: { children: React.ReactNode; color?: string }) {
   return (
@@ -44,6 +45,14 @@ export default function Profile() {
     ? `${usuario.nombre.charAt(0)}${usuario.apellido.charAt(0)}`.toUpperCase()
     : '?';
 
+  const fotoUri = urlFotoPerfil(usuario?.fotoPerfilUrl ?? null);
+  const [fotoError, setFotoError] = useState(false);
+
+  // Si cambia la foto (nueva subida), reseteamos el error para reintentar cargarla.
+  useEffect(() => {
+    setFotoError(false);
+  }, [fotoUri]);
+
   return (
     <View style={styles.root}>
       <AuroraBackground />
@@ -53,14 +62,24 @@ export default function Profile() {
 
           {/* NAVEGACIÓN 1: Tarjeta de usuario -> Editar Perfil */}
           <Pressable onPress={() => router.push('/profile-edit')} style={styles.userCard}>
-            <LinearGradient
-              colors={gradients.lime}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatar}
-            >
-              <Text style={styles.avatarText}>{iniciales}</Text>
-            </LinearGradient>
+            <View style={styles.avatar}>
+              {fotoUri && !fotoError ? (
+                <Image
+                  source={{ uri: fotoUri }}
+                  style={StyleSheet.absoluteFillObject}
+                  onError={() => setFotoError(true)}
+                />
+              ) : (
+                <LinearGradient
+                  colors={gradients.lime}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[StyleSheet.absoluteFillObject, styles.avatarFallback]}
+                >
+                  <Text style={styles.avatarText}>{iniciales}</Text>
+                </LinearGradient>
+              )}
+            </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.userName}>{nombreCompleto}</Text>
               <Text style={styles.userMail}>{usuario?.email ?? ''}</Text>
@@ -173,6 +192,11 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
