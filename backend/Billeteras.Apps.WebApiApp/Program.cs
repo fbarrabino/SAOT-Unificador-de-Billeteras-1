@@ -137,11 +137,32 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// CORS abierto (política "AllowAll")
+// ─── CORS restrictivo (rúbrica 5.3 / OWASP) ──────────────────────────────────
+// En vez de abrir a "*", permitimos SOLO los orígenes declarados en appsettings
+// ("Cors:AllowedOrigins"). Si no hay ninguno configurado, caemos a los orígenes
+// típicos de desarrollo (Expo web / Metro). La app móvil nativa no usa CORS, así
+// que no se ve afectada por esta restricción.
+var origenesPermitidos = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>();
+
+if (origenesPermitidos is null || origenesPermitidos.Length == 0)
+{
+    origenesPermitidos = new[]
+    {
+        "http://localhost:8081",   // Expo web / Metro
+        "http://localhost:19006",  // Expo web (legacy)
+        "http://localhost:3000"    // dev genérico
+    };
+}
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+    options.AddPolicy("Restrictiva", policy =>
+        policy.WithOrigins(origenesPermitidos)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 var app = builder.Build();
@@ -175,9 +196,26 @@ app.UseSwaggerUI(o =>
     o.DocumentTitle = "Billeteras API — Swagger";
 });
 
+// ─── Security headers (rúbrica 5.3 / OWASP) ──────────────────────────────────
+// Cabeceras defensivas en TODAS las respuestas: evitan MIME sniffing, embebido
+// en iframes (clickjacking) y fuga de la URL por Referer.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    await next();
+});
+
+// HSTS: fuerza HTTPS en el navegador (solo fuera de Development, donde el cert
+// autofirmado y http local complicarían la demo).
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseCors("AllowAll");
+app.UseCors("Restrictiva");
 app.UseAuthentication();
 app.UseAuthorization();
 

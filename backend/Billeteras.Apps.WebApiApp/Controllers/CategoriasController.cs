@@ -1,12 +1,18 @@
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Billeteras.Negocio.Dtos;
 using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
+// Rúbrica 5.2 — todos los endpoints de la API deben estar autenticados.
+// Las categorías son un catálogo global: cualquier usuario autenticado puede
+// leerlas, pero solo un Admin puede crear/modificar/eliminar (mismo patrón que
+// CuentasBilleteraController y UsuariosController).
 [ApiController]
 [Route("api/categorias")]
+[Authorize]
 public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
 {
     [HttpGet]
@@ -21,6 +27,7 @@ public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CategoriaResponse>> Crear([FromBody] CategoriaRequest req)
     {
         var creada = await negocio.CrearAsync(req);
@@ -28,6 +35,7 @@ public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<CategoriaResponse>> Actualizar(int id, [FromBody] CategoriaRequest req)
     {
         var actualizada = await negocio.ActualizarAsync(id, req);
@@ -35,6 +43,7 @@ public class CategoriasController(ICategoriaNegocio negocio) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Eliminar(int id)
         => await negocio.EliminarAsync(id) ? NoContent() : NotFound();
 }
