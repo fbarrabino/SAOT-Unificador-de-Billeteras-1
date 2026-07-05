@@ -13,7 +13,12 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.saot.mobile"
+      "bundleIdentifier": "app.saot.mobile",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "package": "app.saot.mobile",
@@ -34,6 +39,12 @@
         "expo-local-authentication",
         {
           "faceIDPermission": "SaOT usa Face ID para confirmar tus pagos de forma segura."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SaOT necesita acceso a tus fotos para que elijas tu foto de perfil."
         }
       ]
     ],
