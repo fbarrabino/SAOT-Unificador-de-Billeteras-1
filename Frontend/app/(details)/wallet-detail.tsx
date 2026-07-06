@@ -1,6 +1,6 @@
 // Billetera — pantalla de detalle de una cuenta vinculada (saldo, movimientos, desvincular).
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,6 +12,7 @@ import { fmt } from '@/utils/format';
 import { useWallets } from '@/context/WalletsContext';
 import { useNotif } from '@/context/NotifContext';
 import { desvincularCuentaBilletera } from '@/api/cuentas';
+import { useConfirm } from '@/context/ConfirmContext';
 import type { WalletKey } from '@/data/wallets';
 
 export default function WalletDetailScreen() {
@@ -21,6 +22,7 @@ export default function WalletDetailScreen() {
     const { wallet: walletParam } = useLocalSearchParams<{ wallet?: WalletKey }>();
     const { wallets, activity, refresh } = useWallets();
     const { notify } = useNotif();
+    const { confirmar } = useConfirm();
     const [desconectando, setDesconectando] = useState(false);
 
     const walletKey: WalletKey = (walletParam ?? 'mp') as WalletKey;
@@ -42,35 +44,33 @@ export default function WalletDetailScreen() {
 
     const walletTransactions = activity.filter((a) => a.wallet === wallet.key);
 
-    const handleDesconectar = () => {
+    const handleDesconectar = async () => {
         if (!wallet.cuentaId) {
-            Alert.alert('No disponible', 'Esta billetera no tiene una cuenta vinculada en el backend.');
+            notify({ emoji: '⚠️', title: 'No disponible', subtitle: 'Esta billetera no tiene una cuenta vinculada en el backend.' });
             return;
         }
-        Alert.alert(
-            '¿Desconectar billetera?',
-            `Vas a dejar de ver el saldo y los movimientos de ${wallet.name}. Podés volver a vincularla cuando quieras.`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Desconectar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setDesconectando(true);
-                            await desvincularCuentaBilletera(wallet.cuentaId!);
-                            await refresh();
-                            notify({ emoji: '🔌', title: 'Billetera desvinculada', subtitle: `Desconectaste ${wallet.name}` });
-                            router.replace('/(tabs)/wallets');
-                        } catch {
-                            Alert.alert('Error', 'No se pudo desconectar la billetera en este momento.');
-                        } finally {
-                            setDesconectando(false);
-                        }
-                    },
-                },
-            ],
-        );
+
+        // confirmar() funciona en web (window.confirm) y en la app (Alert.alert);
+        // el Alert nativo de react-native-web es un no-op y dejaba esto sin efecto.
+        const ok = await confirmar({
+            titulo: '¿Desconectar billetera?',
+            mensaje: `Vas a dejar de ver el saldo y los movimientos de ${wallet.name}. Podés volver a vincularla cuando quieras.`,
+            textoConfirmar: 'Desconectar',
+            destructivo: true,
+        });
+        if (!ok) return;
+
+        try {
+            setDesconectando(true);
+            await desvincularCuentaBilletera(wallet.cuentaId);
+            await refresh();
+            notify({ emoji: '🔌', title: 'Billetera desvinculada', subtitle: `Desconectaste ${wallet.name}` });
+            router.replace('/(tabs)/wallets');
+        } catch {
+            notify({ emoji: '⚠️', title: 'Error', subtitle: 'No se pudo desconectar la billetera en este momento.' });
+        } finally {
+            setDesconectando(false);
+        }
     };
 
     return (
