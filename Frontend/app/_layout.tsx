@@ -81,6 +81,12 @@ function AppWithProviders() {
             <Stack.Screen name="(request)" />
             <Stack.Screen name="(payqr)" />
           </Stack.Protected>
+
+          {/* Sin guard: signup hace login automático antes de navegar acá, así
+              que si esta pantalla quedara dentro de (auth) (guard !isAuthenticated)
+              o solo dentro del guard isAuthenticated, se rompería según el orden
+              de las llamadas. La dejamos siempre alcanzable. */}
+          <Stack.Screen name="verify-email" />
         </Stack>
         </ConfirmProvider>
       </NotifProvider>

@@ -57,7 +57,7 @@ export default function Signup() {
       // pantalla puede seguir montada debajo de /login en el stack, y un
       // efecto reactivo a isAuthenticated se dispararía en ambas a la vez,
       // generando una carrera que termina en /(tabs)/home en vez de acá.
-      router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim().toLowerCase() } });
+      router.replace({ pathname: '/verify-email', params: { email: email.trim().toLowerCase() } });
     } catch (err) {
       let mensaje: string;
       if (err instanceof ApiError) {
