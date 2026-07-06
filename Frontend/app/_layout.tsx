@@ -22,6 +22,7 @@ import { SessionProvider, useSession } from '@/context/SessionContext';
 import { WalletsProvider } from '@/context/WalletsContext';
 import { SplashScreen } from '@/components/SplashScreen';
 import { NotifProvider } from '@/context/NotifContext';
+import { ConfirmProvider } from '@/context/ConfirmContext';
 
 // Duración mínima del splash custom para que se sienta intencional
 // (no un flash de un instante) aunque la sesión ya esté resuelta.
@@ -52,6 +53,9 @@ function AppWithProviders() {
           todas las pantallas (connect-syncing, send, payqr, etc.). Va dentro de
           SafeAreaProvider porque usa useSafeAreaInsets(). */}
       <NotifProvider>
+        {/* ConfirmProvider expone useConfirm() → modal de confirmación in-app
+            (dentro del dispositivo), en vez del window.confirm del navegador. */}
+        <ConfirmProvider>
         <StatusBar style="light" />
         <Stack
           screenOptions={{
@@ -77,6 +81,7 @@ function AppWithProviders() {
             <Stack.Screen name="(payqr)" />
           </Stack.Protected>
         </Stack>
+        </ConfirmProvider>
       </NotifProvider>
     </WalletsProvider>
   );

@@ -10,24 +10,45 @@ import { NumericKeypad } from '@/components/NumericKeypad';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { WalletGlyph } from '@/components/WalletGlyph';
-import { WALLETS, findWallet, type WalletKey } from '@/data/wallets';
+import { type WalletKey } from '@/data/wallets';
 import { amountValue, fmtCompact } from '@/utils/format';
 import { colors, fonts, radii } from '@/theme/tokens';
+import { useWallets } from '@/context/WalletsContext';
 
 export default function RequestAmount() {
-  const [into, setInto] = useState<WalletKey>('mp');
+  // Solo las billeteras REALES que el usuario conectó (no el catálogo estático).
+  const { wallets } = useWallets();
+  const [into, setInto] = useState<WalletKey | null>(null);
   const [amt, setAmt] = useState('500');
 
   const n = amountValue(amt);
-  const valid = n > 0;
-  const wallet = findWallet(into);
+  // Billetera destino efectiva: la elegida, o la primera conectada como default.
+  const wallet = wallets.find(w => w.key === into) ?? wallets[0];
+  const valid = n > 0 && !!wallet;
 
   function next() {
-    if (!valid) return;
+    if (!valid || !wallet) return;
     router.push({
       pathname: '/(request)/qr',
-      params: { into, amt: String(n) },
+      params: { into: wallet.key, amt: String(n) },
     });
+  }
+
+  // Sin billeteras conectadas no se puede pedir dinero.
+  if (wallets.length === 0) {
+    return (
+      <View style={styles.root}>
+        <AuroraBackground />
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <ScreenHeader title="Pedir" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <Text style={{ color: colors.muted, textAlign: 'center', fontFamily: fonts.body, fontSize: 14 }}>
+              Necesitás al menos una billetera conectada para pedir dinero.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
   }
 
   return (
@@ -42,7 +63,7 @@ export default function RequestAmount() {
 
           <View style={styles.intoRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <WalletGlyph wallet={into} size={32} />
+              <WalletGlyph wallet={wallet.key} size={32} />
               <View style={{ marginLeft: 10 }}>
                 <Text style={styles.intoLabel}>Recibir en</Text>
                 <Text style={styles.intoName}>{wallet.name}</Text>
@@ -50,11 +71,11 @@ export default function RequestAmount() {
             </View>
 
             <View style={styles.swatch}>
-              {WALLETS.map(w => (
+              {wallets.map(w => (
                 <Pressable
                   key={w.key}
                   onPress={() => setInto(w.key)}
-                  style={[styles.swatchDot, into === w.key && styles.swatchDotOn]}
+                  style={[styles.swatchDot, wallet.key === w.key && styles.swatchDotOn]}
                 >
                   <WalletGlyph wallet={w.key} size={22} />
                 </Pressable>

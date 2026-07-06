@@ -31,8 +31,8 @@ import type { ActivityItem } from '@/data/activity';
 
 type Filter = 'all' | 'in' | 'out';
 
-// Filas por página. El backend clampa pageSize a 1..100.
-const PAGE_SIZE = 20;
+// Filas por página (scroll infinito de a 10). El backend clampa pageSize a 1..100.
+const PAGE_SIZE = 10;
 
 function SearchIcon() {
   return (

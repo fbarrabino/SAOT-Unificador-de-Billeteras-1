@@ -14,8 +14,27 @@ import { fmt } from '@/utils/format';
 import { colors, fonts } from '@/theme/tokens';
 
 export default function SendSuccess() {
-  const { to, from, amt } = useLocalSearchParams<{ to?: string; from?: WalletKey; amt?: string }>();
-  const contact = findContact(to ?? '') ?? findContact('lr')!;
+  const { to, from, amt, name, initials, color } = useLocalSearchParams<{
+    to?: string;
+    from?: WalletKey;
+    amt?: string;
+    name?: string;
+    initials?: string;
+    color?: string;
+  }>();
+
+  // Para usuarios reales del backend `to` es el usuarioId numérico, que NO existe
+  // entre los contactos mock (ids 'lr', 'mf', …). Antes esto caía al fallback
+  // findContact('lr') = Lucía Romero y mostraba un nombre equivocado. Ahora
+  // priorizamos el nombre real que confirm.tsx pasa por params, y usamos el
+  // contacto mock solo como complemento para el flujo estático.
+  const staticContact = findContact(to ?? '');
+  const contact = staticContact ?? {
+    id: to ?? '',
+    name: name ?? 'Contacto',
+    initials: initials ?? '??',
+    color: color ?? '#A259FF',
+  };
   const wallet = findWallet((from as WalletKey) ?? 'mp');
   const n = Number(amt ?? 0);
 
