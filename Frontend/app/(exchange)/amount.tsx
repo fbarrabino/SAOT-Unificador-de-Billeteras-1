@@ -1,8 +1,8 @@
 // Cambiar #1 — Selector Desde/Hacia + monto.
 // Reglas (de saot-demo.js): origen ≠ destino, monto > 0, monto ≤ saldo de origen.
 // Comisión fija: 0.3% (saot demo usa 0.3%; lo aproximamos para el mock).
-import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Animated, Easing, LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -26,6 +26,61 @@ export default function ExchangeAmount() {
   const [to, setTo] = useState<WalletKey>('lm');
   const [amt, setAmt] = useState('250');
   const [picker, setPicker] = useState<'from' | 'to' | null>(null);
+
+  // ── Swap animado (tocar el botón del medio intercambia Desde ↔ A) ───────────
+  // Medimos la posición Y de cada slot para que el cruce recorra la distancia
+  // exacta entre ellos. `progress` (0→1) desliza el de arriba hacia abajo y el
+  // de abajo hacia arriba; al terminar, aplicamos el swap de estado y reseteamos.
+  const progress = useRef(new Animated.Value(0)).current;
+  const fromY = useRef<number | null>(null);
+  const toY = useRef<number | null>(null);
+  const [dist, setDist] = useState(0);
+  const [animating, setAnimating] = useState(false);
+  const swapping = useRef(false);
+
+  function measure(which: 'from' | 'to') {
+    return (e: LayoutChangeEvent) => {
+      const y = e.nativeEvent.layout.y;
+      if (which === 'from') fromY.current = y;
+      else toY.current = y;
+      if (fromY.current != null && toY.current != null) {
+        setDist(Math.abs(toY.current - fromY.current));
+      }
+    };
+  }
+
+  function doSwap() {
+    if (swapping.current) return;
+    setPicker(null);
+
+    // Aún sin medir: intercambio instantáneo (sin animación) para no romper el flujo.
+    if (dist <= 0) {
+      setFrom(to);
+      setTo(from);
+      return;
+    }
+
+    swapping.current = true;
+    setAnimating(true);
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setFrom(to);
+        setTo(from);
+      }
+      progress.setValue(0);
+      swapping.current = false;
+      setAnimating(false);
+    });
+  }
+
+  const fromTranslate = progress.interpolate({ inputRange: [0, 1], outputRange: [0, dist] });
+  const toTranslate = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -dist] });
+  const iconRotate = progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
   // Saldos REALES del contexto (no mock) → se actualizan tras cada cambio.
   const { wallets } = useWallets();
@@ -90,27 +145,37 @@ export default function ExchangeAmount() {
         <ScreenHeader title="Cambiar" />
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <WalletSlot
-            role="Desde"
-            wallet={fromWallet}
-            onPick={() => setPicker(p => (p === 'from' ? null : 'from'))}
-            picking={picker === 'from'}
-          />
+          <Animated.View
+            onLayout={measure('from')}
+            style={{ transform: [{ translateY: fromTranslate }], zIndex: animating ? 2 : 0, elevation: animating ? 2 : 0 }}
+          >
+            <WalletSlot
+              role="Desde"
+              wallet={fromWallet}
+              onPick={() => setPicker(p => (p === 'from' ? null : 'from'))}
+              picking={picker === 'from'}
+            />
+          </Animated.View>
 
-          <View style={styles.swap}>
-            <View style={styles.swapBtn}>
+          <Pressable style={styles.swap} onPress={doSwap} hitSlop={16} accessibilityLabel="Intercambiar billeteras">
+            <Animated.View style={[styles.swapBtn, { transform: [{ rotate: iconRotate }] }]}>
               <Svg width={14} height={14} viewBox="0 0 24 24">
                 <Path d="M4 8h13l-3-3M20 16H7l3 3" stroke={colors.cyan} strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
-            </View>
-          </View>
+            </Animated.View>
+          </Pressable>
 
-          <WalletSlot
-            role="A"
-            wallet={toWallet}
-            onPick={() => setPicker(p => (p === 'to' ? null : 'to'))}
-            picking={picker === 'to'}
-          />
+          <Animated.View
+            onLayout={measure('to')}
+            style={{ transform: [{ translateY: toTranslate }], zIndex: animating ? 1 : 0, elevation: animating ? 1 : 0 }}
+          >
+            <WalletSlot
+              role="A"
+              wallet={toWallet}
+              onPick={() => setPicker(p => (p === 'to' ? null : 'to'))}
+              picking={picker === 'to'}
+            />
+          </Animated.View>
 
           {picker ? (
             <View style={styles.pickList}>
