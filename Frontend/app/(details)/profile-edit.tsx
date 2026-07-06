@@ -1,5 +1,4 @@
-// Perfil — pantalla de edición de datos personales del usuario logueado.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,6 +36,10 @@ export default function ProfileEditScreen() {
     const [country, setCountry] = useState(usuario?.pais ?? 'Argentina');
     const [subiendoFoto, setSubiendoFoto] = useState(false);
     const [guardando, setGuardando] = useState(false);
+    const [fotoError, setFotoError] = useState(false);
+    // Alert.alert no renderiza nada en el build web (react-native-web la deja vacía),
+    // así que el resultado de "Guardar cambios" se muestra con este texto inline.
+    const [mensajeGuardado, setMensajeGuardado] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
     const iniciales = (usuario
         ? `${usuario.nombre?.[0] ?? ''}${usuario.apellido?.[0] ?? ''}`
@@ -45,19 +48,25 @@ export default function ProfileEditScreen() {
 
     const fotoUri = urlFotoPerfil(usuario?.fotoPerfilUrl ?? null);
 
+    // Si cambia la foto (nueva subida), reseteamos el error para reintentar cargarla.
+    useEffect(() => {
+        setFotoError(false);
+    }, [fotoUri]);
+
     async function handleGuardar() {
         const { nombre, apellido } = separarNombreApellido(name);
 
         if (!nombre) {
-            Alert.alert('Error', 'El nombre es obligatorio.');
+            setMensajeGuardado({ tipo: 'error', texto: 'El nombre es obligatorio.' });
             return;
         }
         if (!email.trim()) {
-            Alert.alert('Error', 'El email es obligatorio.');
+            setMensajeGuardado({ tipo: 'error', texto: 'El email es obligatorio.' });
             return;
         }
 
         setGuardando(true);
+        setMensajeGuardado(null);
         try {
             const actualizado = await actualizarPerfil({
                 nombre,
@@ -67,7 +76,9 @@ export default function ProfileEditScreen() {
                 telefono: phone.trim() || null,
             });
             actualizarUsuario(actualizado);
-            router.back();
+            setMensajeGuardado({ tipo: 'ok', texto: 'Cambios guardados correctamente.' });
+            // Dejamos ver la confirmación un instante antes de volver atrás.
+            setTimeout(() => router.back(), 800);
         } catch (err) {
             let mensaje: string;
             if (err instanceof ApiError) {
@@ -94,7 +105,7 @@ export default function ProfileEditScreen() {
             } else {
                 mensaje = 'Ocurrió un error desconocido al guardar los cambios.';
             }
-            Alert.alert('Error', mensaje);
+            setMensajeGuardado({ tipo: 'error', texto: mensaje });
         } finally {
             setGuardando(false);
         }
@@ -146,8 +157,12 @@ export default function ProfileEditScreen() {
 
                 <View style={styles.avatarSection}>
                     <View style={styles.avatarCircle}>
-                        {fotoUri ? (
-                            <Image source={{ uri: fotoUri }} style={StyleSheet.absoluteFillObject} />
+                        {fotoUri && !fotoError ? (
+                            <Image
+                                source={{ uri: fotoUri }}
+                                style={StyleSheet.absoluteFillObject}
+                                onError={() => setFotoError(true)}
+                            />
                         ) : (
                             <>
                                 <LinearGradient
@@ -197,6 +212,17 @@ export default function ProfileEditScreen() {
                             </LinearGradient>
                         </Pressable>
                     </View>
+                    {mensajeGuardado ? (
+                        <Text
+                            style={[
+                                type.small,
+                                styles.mensajeGuardado,
+                                { color: mensajeGuardado.tipo === 'ok' ? colors.cyan : colors.red },
+                            ]}
+                        >
+                            {mensajeGuardado.texto}
+                        </Text>
+                    ) : null}
                 </View>
             </ScrollView>
         </View>
@@ -298,5 +324,9 @@ const styles = StyleSheet.create({
         borderRadius: radii.button,
         alignItems: 'center',
         justifyContent: 'center',
-    }
+    },
+    mensajeGuardado: {
+        textAlign: 'center',
+        marginTop: spacing.md,
+    },
 });

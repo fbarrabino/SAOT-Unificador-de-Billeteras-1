@@ -210,17 +210,21 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// HSTS + redirección a HTTPS: solo FUERA de Development. En dev el frontend pega
-// por http://localhost:5001; si redirigiéramos a HTTPS, el preflight CORS (OPTIONS)
-// recibiría un redirect —prohibido en preflight— y el navegador bloquearía el login/registro.
+// HSTS: fuerza HTTPS en el navegador (solo fuera de Development, donde el cert
+// autofirmado y http local complicarían la demo).
 if (!app.Environment.IsDevelopment())
-{
     app.UseHsts();
-    app.UseHttpsRedirection();
-}
 
-app.UseStaticFiles();
 app.UseCors("Restrictiva");
+// En Development, /api/* no redirige a HTTPS: el redirect cruza de origen
+// (5001 -> 7001) y ese salto rompe el preflight CORS (el navegador manda
+// Origin: null en el redirect, que ninguna política de CORS puede permitir).
+// Fuera de Development, o para rutas que no sean /api, el comportamiento
+// no cambia.
+app.UseWhen(
+    context => !(app.Environment.IsDevelopment() && context.Request.Path.StartsWithSegments("/api")),
+    branch => branch.UseHttpsRedirection());
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 
