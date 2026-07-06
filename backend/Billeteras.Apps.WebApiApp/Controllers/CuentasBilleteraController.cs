@@ -40,6 +40,31 @@ public class CuentasBilleteraController(ICuentaBilleteraNegocio negocio) : Contr
         }
     }
 
+    /// GET /api/cuentas-billetera/de-usuario/{usuarioId} — billeteras Activas de OTRO
+    /// usuario, para poder elegir a cuál enviarle dinero. Autenticado. Devuelve solo
+    /// id + nombre de billetera + alias: NUNCA el saldo del destinatario (privacidad).
+    [HttpGet("de-usuario/{usuarioId:int}")]
+    public async Task<ActionResult<List<BilleteraDestinoResponse>>> ObtenerDeUsuario(int usuarioId)
+    {
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idClaim, out _))
+            return Unauthorized(new { mensaje = "Token inválido." });
+
+        try
+        {
+            var activas = await negocio.ObtenerActivasDeUsuarioAsync(usuarioId);
+            var destino = activas
+                .Select(c => new BilleteraDestinoResponse(c.CuentaBilleteraId, c.BilleteraNombre, c.Alias))
+                .ToList();
+            return Ok(destino);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[CuentasBilletera/de-usuario] Error: {ex}");
+            return StatusCode(500, new { mensaje = "Error interno al obtener las billeteras del destinatario." });
+        }
+    }
+
     // GET /api/cuentas-billetera/{id} — una cuenta por Id (solo su dueño o un Admin).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CuentaBilleteraResponse>> ObtenerPorId(int id)

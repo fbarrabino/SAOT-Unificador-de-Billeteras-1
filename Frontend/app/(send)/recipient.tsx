@@ -1,81 +1,120 @@
-// Enviar #1 — Buscar destinatario con contactos reales del Backend.
-// Search input + grid horizontal de contactos frecuentes + lista vertical "Todos los contactos".
+// Enviar #1 — Buscar destinatario entre los contactos REALES del teléfono que ya
+// usan SaOT. Pide permiso de contactos, cruza la agenda (email + teléfono) con los
+// usuarios registrados (matchContactos) y, al elegir uno, sigue a la pantalla de
+// selección de billetera del destinatario. En web el navegador no accede a la
+// agenda → se usa una lista demo con los emails de las cuentas de presentación.
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import Svg, { Circle, Path } from 'react-native-svg';
+import * as Contacts from 'expo-contacts';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ContactAvatar } from '@/components/ContactAvatar';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { type Contact } from '@/data/contacts';
 import { colors, fonts } from '@/theme/tokens';
-import { getMisContactos, type BackendContact } from '@/api/contactos';
+import { matchContactos, type MatchContact } from '@/api/contactos';
 
-// Paleta determinista para asignar colores suaves a los contactos dinámicos del BE
+// Paleta determinista para colorear los avatares de los contactos.
 const PALETTE = ['#E08A55', '#A259FF', '#00F0FF', '#00FF85', '#FF4B4B', '#FFD600'];
+
+type PhoneContact = { name: string; email?: string; phone?: string };
+
+// Contactos simulados para la demo WEB (el navegador no accede a la agenda).
+// Incluyen los emails de las cuentas demo para que el cruce muestre coincidencias.
+const WEB_DEMO_CONTACTS: PhoneContact[] = [
+  { name: 'Fabri (demo)', email: 'fabrisaot@gmail.com' },
+  { name: 'Franco (demo)', email: 'francosaot@gmail.com' },
+  { name: 'Lautaro (demo)', email: 'lautarosaot@gmail.com' },
+];
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length > 1) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0]?.slice(0, 2) || '??').toUpperCase();
+}
+
+function colorFor(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
 
 export default function SendRecipient() {
   const [query, setQuery] = useState('');
-  const [contacts, setContacts] = useState<(Contact & { cuentaDestinoId?: number })[]>([]);
+  const [appUsers, setAppUsers] = useState<MatchContact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
-    async function loadContacts() {
+    let cancelled = false;
+
+    async function run() {
       try {
-        const data = await getMisContactos();
+        let phone: PhoneContact[] = [];
 
-        // Mapeamos los campos del Backend al contrato visual del Frontend
-        const mapped = data.map((bc) => {
-          const name = bc.nombre || 'Sin Nombre';
-          const parts = name.trim().split(' ');
-          const initials = parts.length > 1
-            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-            : parts[0] ? parts[0][0].toUpperCase() : '??';
+        if (Platform.OS === 'web') {
+          phone = WEB_DEMO_CONTACTS;
+        } else {
+          const { status } = await Contacts.requestPermissionsAsync();
+          if (status !== 'granted') {
+            if (!cancelled) {
+              setDenied(true);
+              setLoading(false);
+            }
+            return;
+          }
+          const { data } = await Contacts.getContactsAsync({
+            fields: [Contacts.Fields.Emails, Contacts.Fields.Name, Contacts.Fields.PhoneNumbers],
+          });
+          phone = data.map((c) => ({
+            name: c.name || 'Sin nombre',
+            email: c.emails?.[0]?.email?.trim().toLowerCase(),
+            phone: c.phoneNumbers?.[0]?.number?.trim(),
+          }));
+        }
 
-          const color = PALETTE[bc.usuarioContactoId % PALETTE.length];
-          const handle = bc.email ? `@${bc.email.split('@')[0]}` : '@usuario';
+        // Cruzamos por email Y teléfono con los usuarios registrados de SaOT.
+        const emails = phone.map((p) => p.email).filter((e): e is string => !!e);
+        const telefonos = phone.map((p) => p.phone).filter((t): t is string => !!t);
+        const matches = emails.length || telefonos.length ? await matchContactos(emails, telefonos) : [];
 
-          return {
-            id: String(bc.usuarioContactoId),
-            name,
-            handle,
-            initials,
-            color,
-            cuentaDestinoId: bc.cuentaDestinoId
-          };
-        });
-
-        setContacts(mapped);
+        if (!cancelled) {
+          setAppUsers(matches);
+          setLoading(false);
+        }
       } catch (err) {
-        console.error('Error al cargar contactos reales:', err);
-      } finally {
-        setLoading(false);
+        console.warn('[send/recipient] error al leer/cruzar contactos:', err);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    loadContacts();
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return contacts;
-    return contacts.filter(
-      c => c.name.toLowerCase().includes(q) || c.handle.toLowerCase().includes(q),
+    if (!q) return appUsers;
+    return appUsers.filter(
+      (u) => u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
     );
-  }, [query, contacts]);
+  }, [query, appUsers]);
 
-  function pick(c: Contact & { cuentaDestinoId?: number }) {
-    // Inyectamos todas las propiedades reales en los params de navegación para la cadena completa del flujo
+  function pick(u: MatchContact) {
+    // Vamos al selector de billetera del destinatario con su usuarioId real.
     router.push({
-      pathname: '/(send)/amount',
+      pathname: '/(send)/pick-wallet',
       params: {
-        to: c.id,
-        name: c.name,
-        initials: c.initials,
-        color: c.color,
-        cuentaDestinoId: c.cuentaDestinoId ? String(c.cuentaDestinoId) : ''
-      }
+        to: String(u.usuarioId),
+        usuarioId: String(u.usuarioId),
+        name: u.nombre,
+        initials: initialsOf(u.nombre),
+        color: colorFor(u.email),
+      },
     });
   }
 
@@ -98,7 +137,7 @@ export default function SendRecipient() {
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder="Buscar nombre, usuario o email"
+              placeholder="Buscar nombre o email"
               placeholderTextColor={colors.dim}
               style={styles.searchInput}
               autoCapitalize="none"
@@ -106,44 +145,55 @@ export default function SendRecipient() {
           </View>
 
           {loading ? (
-            <View style={styles.loaderContainer}>
+            <View style={styles.center}>
               <ActivityIndicator color={colors.cyan} size="large" />
-              <Text style={styles.loaderText}>Cargando contactos de la red...</Text>
+              <Text style={styles.centerText}>Buscando contactos que usan SaOT…</Text>
+            </View>
+          ) : denied ? (
+            <View style={styles.center}>
+              <Feather name="lock" size={28} color={colors.dim} />
+              <Text style={styles.centerText}>
+                No nos diste permiso a los contactos. Podés habilitarlo desde los ajustes del teléfono para enviar dinero a tu agenda.
+              </Text>
             </View>
           ) : (
             <>
-              {contacts.length > 0 && (
+              {appUsers.length > 0 && (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.freqRow}
                   style={{ marginHorizontal: -18, paddingHorizontal: 18 }}
                 >
-                  {contacts.slice(0, 5).map(c => (
-                    <Pressable key={c.id} style={styles.freqItem} onPress={() => pick(c)}>
-                      <ContactAvatar initials={c.initials} color={c.color} size={48} />
+                  {appUsers.slice(0, 5).map((u) => (
+                    <Pressable key={u.usuarioId} style={styles.freqItem} onPress={() => pick(u)}>
+                      <ContactAvatar initials={initialsOf(u.nombre)} color={colorFor(u.email)} size={48} />
                       <Text style={styles.freqName} numberOfLines={1}>
-                        {c.name.split(' ')[0]}
+                        {u.nombre.split(' ')[0]}
                       </Text>
                     </Pressable>
                   ))}
                 </ScrollView>
               )}
 
-              <Text style={styles.sectionLabel}>TODOS LOS CONTACTOS</Text>
+              <Text style={styles.sectionLabel}>TUS CONTACTOS QUE USAN SAOT</Text>
 
-              {filtered.map(c => (
-                <Pressable key={c.id} style={styles.contactRow} onPress={() => pick(c)}>
-                  <ContactAvatar initials={c.initials} color={c.color} size={40} />
+              {filtered.map((u) => (
+                <Pressable key={u.usuarioId} style={styles.contactRow} onPress={() => pick(u)}>
+                  <ContactAvatar initials={initialsOf(u.nombre)} color={colorFor(u.email)} size={40} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.contactName}>{c.name}</Text>
-                    <Text style={styles.contactHandle}>{c.handle}</Text>
+                    <Text style={styles.contactName}>{u.nombre}</Text>
+                    <Text style={styles.contactHandle}>{u.email}</Text>
                   </View>
                   <Text style={styles.chev}>›</Text>
                 </Pressable>
               ))}
 
-              {filtered.length === 0 ? (
+              {appUsers.length === 0 ? (
+                <Text style={styles.empty}>
+                  Ninguno de tus contactos usa SaOT todavía. Invitalos desde “Conectá tus contactos”.
+                </Text>
+              ) : filtered.length === 0 ? (
                 <Text style={styles.empty}>No encontramos contactos para "{query}".</Text>
               ) : null}
             </>
@@ -196,7 +246,7 @@ const styles = StyleSheet.create({
   contactName: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.text },
   contactHandle: { fontFamily: fonts.body, fontSize: 12, color: colors.dim, marginTop: 2 },
   chev: { fontFamily: fonts.body, fontSize: 18, color: colors.dim, marginLeft: 8 },
-  empty: { textAlign: 'center', color: colors.dim, fontFamily: fonts.body, fontSize: 13, marginTop: 18 },
-  loaderContainer: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' },
-  loaderText: { fontFamily: fonts.body, fontSize: 13, color: colors.dim, marginTop: 12 }
+  empty: { textAlign: 'center', color: colors.dim, fontFamily: fonts.body, fontSize: 13, marginTop: 18, paddingHorizontal: 20, lineHeight: 19 },
+  center: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  centerText: { fontFamily: fonts.body, fontSize: 13, color: colors.dim, textAlign: 'center', paddingHorizontal: 24, lineHeight: 19 },
 });

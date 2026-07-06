@@ -84,6 +84,44 @@ export async function fetchMisCuentas(): Promise<Wallet[]> {
   }
 }
 
+// ─── Billeteras de un destinatario (para elegir a cuál enviarle dinero) ───────
+
+// Billetera de OTRO usuario tal como la expone el backend: sin saldo (privacidad).
+export interface BilleteraDestinoResponse {
+  cuentaBilleteraId: number;
+  billeteraNombre: string | null;
+  alias: string | null;
+}
+
+// Billetera destino ya lista para la UI (con el key interno para pintar el logo).
+export interface BilleteraDestino {
+  cuentaBilleteraId: number;
+  nombre: string;
+  alias: string | null;
+  key: WalletKey | null; // null si el nombre no matchea ninguna billetera conocida
+}
+
+/**
+ * GET /api/cuentas-billetera/de-usuario/{usuarioId}
+ *
+ * Billeteras activas del destinatario para elegir a cuál cae el pago.
+ * No trae el saldo del otro usuario.
+ */
+export async function fetchBilleterasDeUsuario(usuarioId: number): Promise<BilleteraDestino[]> {
+  const cuentas = await api.get<BilleteraDestinoResponse[]>(
+    `/api/cuentas-billetera/de-usuario/${usuarioId}`,
+  );
+
+  if (!Array.isArray(cuentas)) return [];
+
+  return cuentas.map((c) => ({
+    cuentaBilleteraId: c.cuentaBilleteraId,
+    nombre: c.billeteraNombre ?? 'Billetera',
+    alias: c.alias,
+    key: toWalletKey(c.billeteraNombre),
+  }));
+}
+
 // Nueva función para B4-FE (Tu trabajo)
 export async function vincularCuentaBilletera(billeteraId: number, alias: string, saldoInicial: number): Promise<CuentaBilleteraResponse> {
   const req = {
