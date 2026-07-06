@@ -47,6 +47,36 @@ export default function ResetCode() {
     }
   };
 
+  // Contenido de la pantalla. Se envuelve en TouchableWithoutFeedback SOLO en
+  // nativo (ver abajo); en web ese wrapper roba el foco de las casillas.
+  const content = (
+    <View style={{ flex: 1 }}>
+      <ScreenHeader title="Restablecer contraseña" />
+      <View style={styles.body}>
+        <Text style={styles.title}>Ingresá el código</Text>
+        <Text style={styles.lead}>Te enviamos un código de 6 dígitos al email.</Text>
+
+        <View style={{ marginTop: 28 }}>
+          <CodeInput length={6} onChange={setCode} />
+        </View>
+
+        <Pressable onPress={handleResend} style={styles.resend} disabled={isResending}>
+          <Text style={styles.resendText}>{isResending ? 'Reenviando...' : 'Reenviar código'}</Text>
+        </Pressable>
+
+        {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
+      </View>
+
+      <View style={styles.footer}>
+        <PrimaryButton
+          label="Verificar código"
+          onPress={handleContinuar}
+          disabled={code.length < 6}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
       <AuroraBackground />
@@ -56,34 +86,17 @@ export default function ResetCode() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={20}
         >
-          {/* Tocar fuera del input cierra el teclado para poder llegar al CTA */}
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View style={{ flex: 1 }}>
-              <ScreenHeader title="Restablecer contraseña" />
-              <View style={styles.body}>
-                <Text style={styles.title}>Ingresá el código</Text>
-                <Text style={styles.lead}>Te enviamos un código de 6 dígitos al email.</Text>
-
-                <View style={{ marginTop: 28 }}>
-                  <CodeInput length={6} onChange={setCode} />
-                </View>
-
-          <Pressable onPress={handleResend} style={styles.resend} disabled={isResending}>
-            <Text style={styles.resendText}>{isResending ? 'Reenviando...' : 'Reenviar código'}</Text>
-          </Pressable>
-
-          {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
-        </View>
-
-              <View style={styles.footer}>
-                <PrimaryButton
-                  label="Verificar código"
-                  onPress={handleContinuar}
-                  disabled={code.length < 6}
-                />
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
+          {/* En web, envolver todo en TouchableWithoutFeedback + Keyboard.dismiss
+              roba el foco al tocar las casillas (el click burbujea y hace blur),
+              impidiendo escribir el código. Por eso el "tocar afuera para cerrar
+              el teclado" queda solo en nativo, donde el TextInput retiene el gesto. */}
+          {Platform.OS === 'web' ? (
+            content
+          ) : (
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              {content}
+            </TouchableWithoutFeedback>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>

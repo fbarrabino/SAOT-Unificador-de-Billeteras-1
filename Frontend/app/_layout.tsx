@@ -48,31 +48,36 @@ function AppWithProviders() {
     // enabled={isAuthenticated} hace que WalletsProvider cargue datos
     // solo cuando hay sesión activa y los limpie al desloguearse.
     <WalletsProvider enabled={isAuthenticated}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
-          animation: 'slide_from_right',
-        }}
-      >
-        {/* Sin sesión: solo se puede navegar dentro de (auth) (login/registro/recuperar). */}
-        <Stack.Protected guard={!isAuthenticated}>
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
+      {/* NotifProvider envuelve el Stack para que useNotif esté disponible en
+          todas las pantallas (connect-syncing, send, payqr, etc.). Va dentro de
+          SafeAreaProvider porque usa useSafeAreaInsets(). */}
+      <NotifProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bg },
+            animation: 'slide_from_right',
+          }}
+        >
+          {/* Sin sesión: solo se puede navegar dentro de (auth) (login/registro/recuperar). */}
+          <Stack.Protected guard={!isAuthenticated}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
 
-        {/* Con sesión: el resto de la app. Si no hay sesión, Expo Router
-            redirige automáticamente a la primera ruta disponible del guard
-            activo (login), evitando el acceso directo por URL. */}
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(details)" />
-          <Stack.Screen name="(exchange)" />
-          <Stack.Screen name="(send)" />
-          <Stack.Screen name="(request)" />
-          <Stack.Screen name="(payqr)" />
-        </Stack.Protected>
-      </Stack>
+          {/* Con sesión: el resto de la app. Si no hay sesión, Expo Router
+              redirige automáticamente a la primera ruta disponible del guard
+              activo (login), evitando el acceso directo por URL. */}
+          <Stack.Protected guard={isAuthenticated}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(details)" />
+            <Stack.Screen name="(exchange)" />
+            <Stack.Screen name="(send)" />
+            <Stack.Screen name="(request)" />
+            <Stack.Screen name="(payqr)" />
+          </Stack.Protected>
+        </Stack>
+      </NotifProvider>
     </WalletsProvider>
   );
 }
