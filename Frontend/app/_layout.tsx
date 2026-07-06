@@ -23,6 +23,7 @@ import { WalletsProvider } from '@/context/WalletsContext';
 import { SplashScreen } from '@/components/SplashScreen';
 import { NotifProvider } from '@/context/NotifContext';
 import { ConfirmProvider } from '@/context/ConfirmContext';
+import { SettingsProvider } from '@/context/SettingsContext';
 
 // Duración mínima del splash custom para que se sienta intencional
 // (no un flash de un instante) aunque la sesión ya esté resuelta.
@@ -104,10 +105,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      {/* SessionProvider va afuera: maneja JWT y datos del usuario */}
-      <SessionProvider>
-        <AppWithProviders />
-      </SessionProvider>
+      {/* SettingsProvider afuera de todo: preferencias de notificaciones/seguridad
+          persistidas en AsyncStorage, disponibles en toda la app. */}
+      <SettingsProvider>
+        {/* SessionProvider va afuera: maneja JWT y datos del usuario */}
+        <SessionProvider>
+          <AppWithProviders />
+        </SessionProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }
