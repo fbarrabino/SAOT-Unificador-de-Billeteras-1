@@ -28,3 +28,13 @@ public record CuentaBilleteraResponse(
 public record VincularBilleteraRequest(
     [Range(1, int.MaxValue)] int BilleteraId,
     [MaxLength(100)] string? Alias);
+
+/// <summary>
+/// Billetera de OTRO usuario, expuesta para poder enviarle dinero (elegir a qué
+/// billetera destino cae el pago). NO incluye el saldo: no corresponde que el
+/// remitente vea cuánta plata tiene el destinatario (privacidad).
+/// </summary>
+public record BilleteraDestinoResponse(
+    int CuentaBilleteraId,
+    string? BilleteraNombre,
+    string? Alias);
