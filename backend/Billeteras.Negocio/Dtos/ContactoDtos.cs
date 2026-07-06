@@ -23,3 +23,20 @@ public class CreateContactoDto
     [MaxLength(100)]
     public string? AliasPersonalizado { get; set; }
 }
+
+/// DTO de entrada: emails de la agenda del teléfono a cruzar con usuarios registrados.
+/// Solo se usan para buscar coincidencias; el backend NO los persiste (privacidad).
+public class MatchContactosRequest
+{
+    [Required]
+    public List<string> Emails { get; set; } = new();
+}
+
+/// DTO de salida: un contacto de la agenda que YA es usuario de la app
+/// (listo para agregarlo como contacto con su UsuarioId).
+public class MatchContactoDto
+{
+    public int UsuarioId { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}

@@ -18,7 +18,9 @@ export default function VerifyEmail() {
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const goHome = () => router.replace('/(tabs)/home');
+  // Tras verificar (o postergar), pasamos por el onboarding de contactos y de
+  // ahí a home. Es un paso opcional que solo aparece al crear la cuenta.
+  const continuar = () => router.replace('/(details)/connect-contacts');
 
   const handleVerificar = async () => {
     if (!email) return;
@@ -26,7 +28,7 @@ export default function VerifyEmail() {
     setIsVerifying(true);
     try {
       await verifyEmail(email, code);
-      goHome();
+      continuar();
     } catch (err) {
       setError(err instanceof ApiError ? err.mensaje : 'Ocurrió un error inesperado.');
     } finally {
@@ -82,7 +84,7 @@ export default function VerifyEmail() {
             onPress={handleVerificar}
             disabled={code.length < 6 || isVerifying}
           />
-          <Pressable onPress={goHome} style={styles.skip} disabled={isVerifying}>
+          <Pressable onPress={continuar} style={styles.skip} disabled={isVerifying}>
             <Text style={styles.skipText}>Verificar más tarde</Text>
           </Pressable>
         </View>

@@ -18,3 +18,19 @@ export interface BackendContact {
 // Trae la agenda de contactos del usuario autenticado.
 export const getMisContactos = () =>
     api.get<BackendContact[]>('/api/contactos/me');
+
+// Contacto del teléfono que resultó ser usuario registrado de la app.
+export interface MatchContact {
+    usuarioId: number;
+    nombre: string;
+    email: string;
+}
+
+// Cruza los emails de la agenda del teléfono con los usuarios registrados.
+// El backend no persiste la lista; solo devuelve las coincidencias.
+export const matchContactos = (emails: string[]) =>
+    api.post<MatchContact[]>('/api/contactos/match', { emails });
+
+// Agrega un usuario a la agenda de contactos del usuario autenticado.
+export const agregarContacto = (usuarioContactoId: number, aliasPersonalizado?: string) =>
+    api.post('/api/contactos', { usuarioContactoId, aliasPersonalizado });

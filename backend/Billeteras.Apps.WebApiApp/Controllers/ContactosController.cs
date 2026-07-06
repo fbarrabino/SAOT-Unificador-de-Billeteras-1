@@ -12,8 +12,49 @@ namespace Billeteras.Apps.WebApiApp.Controllers;
 [Route("api/contactos")]
 [ApiController]
 [Authorize]
-public class ContactosController(IContactoRepository repository) : ControllerBase
+public class ContactosController(IContactoRepository repository, IUsuarioRepository usuarioRepo) : ControllerBase
 {
+    // POST /api/contactos/match — recibe los emails de la agenda del teléfono y
+    // devuelve cuáles corresponden a usuarios registrados (para agregarlos como
+    // contacto). NO persiste la lista subida: solo consulta y descarta (privacidad).
+    [HttpPost("match")]
+    public async Task<IActionResult> Match([FromBody] MatchContactosRequest dto)
+    {
+        var usuarioId = ObtenerUsuarioIdActual();
+        if (usuarioId == 0) return Unauthorized();
+
+        if (dto?.Emails is null || dto.Emails.Count == 0)
+            return Ok(Array.Empty<MatchContactoDto>());
+
+        // Normalizamos (trim + minúsculas), deduplicamos y capamos: evita que se
+        // suban agendas enormes y hace la búsqueda determinista.
+        const int MaxEmails = 200;
+        var emails = dto.Emails
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Select(e => e.Trim().ToLowerInvariant())
+            .Distinct()
+            .Take(MaxEmails)
+            .ToList();
+
+        var matches = new List<MatchContactoDto>();
+        foreach (var email in emails)
+        {
+            var u = await usuarioRepo.ObtenerPorEmailAsync(email);
+            // Excluimos al propio usuario (no tiene sentido agregarse a sí mismo).
+            if (u is not null && u.UsuarioId != usuarioId)
+            {
+                matches.Add(new MatchContactoDto
+                {
+                    UsuarioId = u.UsuarioId,
+                    Nombre = $"{u.Nombre} {u.Apellido}".Trim(),
+                    Email = u.Email
+                });
+            }
+        }
+
+        return Ok(matches);
+    }
+
     // GET /api/contactos/me — contactos del usuario del token.
     [HttpGet("me")]
     public async Task<IActionResult> GetMisContactos()
