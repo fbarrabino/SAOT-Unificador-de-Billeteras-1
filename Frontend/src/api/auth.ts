@@ -99,6 +99,7 @@ export async function register(
   apellido: string,
   email: string,
   password: string,
+  telefono?: string,
 ): Promise<UsuarioResponse> {
   if (!nombre.trim()) throw new ApiError(400, 'El nombre es obligatorio.');
   if (!apellido.trim()) throw new ApiError(400, 'El apellido es obligatorio.');
@@ -109,7 +110,14 @@ export async function register(
 
   return api.post<UsuarioResponse>(
     '/api/auth/register',
-    { nombre: nombre.trim(), apellido: apellido.trim(), email: email.trim().toLowerCase(), password },
+    {
+      nombre: nombre.trim(),
+      apellido: apellido.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      // Opcional: habilita el cruce de contactos por número.
+      telefono: telefono?.trim() || null,
+    },
     false,
   );
 }

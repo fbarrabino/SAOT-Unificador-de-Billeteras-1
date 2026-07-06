@@ -7,7 +7,8 @@ public record RegistrarUsuarioRequest(
     [Required, MaxLength(100)] string Nombre,
     [Required, MaxLength(100)] string Apellido,
     [Required, EmailAddress, MaxLength(200)] string Email,
-    [Required, MinLength(6), MaxLength(100)] string Password);
+    [Required, MinLength(6), MaxLength(100)] string Password,
+    [MaxLength(30)] string? Telefono = null);
 
 /// Datos para actualizar un usuario vía CRUD (no incluye contraseña en este TP).
 /// D1+D3: Pais y Telefono son opcionales (el perfil puede quedar incompleto).

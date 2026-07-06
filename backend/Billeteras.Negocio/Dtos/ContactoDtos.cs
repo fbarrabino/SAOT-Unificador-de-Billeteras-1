@@ -28,8 +28,11 @@ public class CreateContactoDto
 /// Solo se usan para buscar coincidencias; el backend NO los persiste (privacidad).
 public class MatchContactosRequest
 {
-    [Required]
     public List<string> Emails { get; set; } = new();
+
+    // Teléfonos de la agenda (opcional). Se cruzan contra Usuario.Telefono
+    // normalizando a solo dígitos.
+    public List<string> Telefonos { get; set; } = new();
 }
 
 /// DTO de salida: un contacto de la agenda que YA es usuario de la app

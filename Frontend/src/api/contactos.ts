@@ -26,10 +26,10 @@ export interface MatchContact {
     email: string;
 }
 
-// Cruza los emails de la agenda del teléfono con los usuarios registrados.
+// Cruza los emails y/o teléfonos de la agenda con los usuarios registrados.
 // El backend no persiste la lista; solo devuelve las coincidencias.
-export const matchContactos = (emails: string[]) =>
-    api.post<MatchContact[]>('/api/contactos/match', { emails });
+export const matchContactos = (emails: string[], telefonos: string[] = []) =>
+    api.post<MatchContact[]>('/api/contactos/match', { emails, telefonos });
 
 // Agrega un usuario a la agenda de contactos del usuario autenticado.
 export const agregarContacto = (usuarioContactoId: number, aliasPersonalizado?: string) =>

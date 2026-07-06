@@ -24,6 +24,7 @@ export default function Signup() {
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [checked, setChecked] = useState(false);
@@ -49,7 +50,7 @@ export default function Signup() {
     setIsLoading(true);
     try {
       // 1. Crear la cuenta (el backend ya dispara el código de verificación)
-      await register(nombre.trim(), apellido.trim(), email.trim().toLowerCase(), password);
+      await register(nombre.trim(), apellido.trim(), email.trim().toLowerCase(), password, telefono);
       // 2. Login automático para que quede autenticado de una
       await login(email.trim().toLowerCase(), password);
       // 3. Navegamos explícitamente (no vía useEffect(isAuthenticated)): esta
@@ -126,6 +127,15 @@ export default function Signup() {
               autoComplete="email"
               value={email}
               onChangeText={v => { setEmail(v); clearErr(); }}
+              editable={!isLoading}
+            />
+            <Input
+              label="Teléfono (opcional)"
+              placeholder="+54 9 3624 000000"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              value={telefono}
+              onChangeText={v => { setTelefono(v); clearErr(); }}
               editable={!isLoading}
             />
             <Input

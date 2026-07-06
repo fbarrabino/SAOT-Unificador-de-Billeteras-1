@@ -23,36 +23,47 @@ public class ContactosController(IContactoRepository repository, IUsuarioReposit
         var usuarioId = ObtenerUsuarioIdActual();
         if (usuarioId == 0) return Unauthorized();
 
-        if (dto?.Emails is null || dto.Emails.Count == 0)
-            return Ok(Array.Empty<MatchContactoDto>());
-
-        // Normalizamos (trim + minúsculas), deduplicamos y capamos: evita que se
-        // suban agendas enormes y hace la búsqueda determinista.
-        const int MaxEmails = 200;
-        var emails = dto.Emails
+        // Normalizamos la entrada: emails a minúsculas, teléfonos a solo dígitos
+        // (últimos 8) para tolerar prefijos de país/área.
+        var emails = (dto?.Emails ?? new())
             .Where(e => !string.IsNullOrWhiteSpace(e))
             .Select(e => e.Trim().ToLowerInvariant())
-            .Distinct()
-            .Take(MaxEmails)
+            .ToHashSet();
+
+        var telefonos = (dto?.Telefonos ?? new())
+            .Select(NormalizarTelefono)
+            .Where(t => t.Length >= 6)
+            .ToHashSet();
+
+        if (emails.Count == 0 && telefonos.Count == 0)
+            return Ok(Array.Empty<MatchContactoDto>());
+
+        // Dataset chico (TP): traemos los usuarios una sola vez y cruzamos en memoria.
+        var usuarios = await usuarioRepo.ObtenerTodosAsync();
+
+        var matches = usuarios
+            .Where(u => u.UsuarioId != usuarioId) // no agregarse a sí mismo
+            .Where(u =>
+                emails.Contains(u.Email.Trim().ToLowerInvariant()) ||
+                (!string.IsNullOrWhiteSpace(u.Telefono) && telefonos.Contains(NormalizarTelefono(u.Telefono))))
+            .Take(200)
+            .Select(u => new MatchContactoDto
+            {
+                UsuarioId = u.UsuarioId,
+                Nombre = $"{u.Nombre} {u.Apellido}".Trim(),
+                Email = u.Email
+            })
             .ToList();
 
-        var matches = new List<MatchContactoDto>();
-        foreach (var email in emails)
-        {
-            var u = await usuarioRepo.ObtenerPorEmailAsync(email);
-            // Excluimos al propio usuario (no tiene sentido agregarse a sí mismo).
-            if (u is not null && u.UsuarioId != usuarioId)
-            {
-                matches.Add(new MatchContactoDto
-                {
-                    UsuarioId = u.UsuarioId,
-                    Nombre = $"{u.Nombre} {u.Apellido}".Trim(),
-                    Email = u.Email
-                });
-            }
-        }
-
         return Ok(matches);
+    }
+
+    // Deja solo dígitos y toma los últimos 8 (tolera prefijos de país/área).
+    private static string NormalizarTelefono(string? tel)
+    {
+        if (string.IsNullOrWhiteSpace(tel)) return string.Empty;
+        var digitos = new string(tel.Where(char.IsDigit).ToArray());
+        return digitos.Length > 8 ? digitos[^8..] : digitos;
     }
 
     // GET /api/contactos/me — contactos del usuario del token.
