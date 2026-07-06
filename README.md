@@ -20,8 +20,11 @@ actividad financiera.
 ## Estado actual del proyecto
 
   **API REST en .NET 10 (ASP.NET Core)** con autenticación **JWT**, roles (`User` / `Admin`),
-  hash de contraseñas **BCrypt**, **CORS** abierto y toda la configuración (connection strings
-  SQL Server / Neo4j + parámetros JWT) leída desde `appsettings.json` vía `IConfiguration`.
+  hash de contraseñas **BCrypt**, **verificación de email por código** (SMTP real vía MailKit),
+  **CORS restrictivo** (lista blanca de orígenes) y **security headers** (X-Content-Type-Options,
+  X-Frame-Options, Referrer-Policy, HSTS fuera de dev). La configuración no sensible se lee de
+  `appsettings.json`; los **secretos** (`Jwt:Key`, `Neo4j:Password`, `Email:Password`) viven en
+  **.NET user-secrets**, fuera del repo (ver [Secretos](#22-secretos-con-user-secrets-importante)).
 
   **Modelo de datos relacional de 20 tablas** en **SQL Server**: las 5 del dominio base más la
   extensión de seguridad/roles, red de contactos, comercios y sucursales, solicitudes de cobro,
@@ -42,9 +45,11 @@ actividad financiera.
   rompe (SQL es la fuente de verdad).
 
   **App móvil Expo + React Native + TypeScript** con navegación **Expo Router**: onboarding con
-  registro/login/recuperación, dashboard con balance consolidado, vínculo de billeteras, detalle
-  por proveedor, flujos de Enviar / Pedir (QR real) / Cambiar / Pagar QR (cámara real),
-  confirmación con **biometría** (Face ID / huella), perfil, soporte y reportes.
+  registro/login/recuperación, **verificación de email por código**, **conectar contactos reales**
+  de la agenda (cruce por email/teléfono con usuarios de la app + invitar/pedir dinero por WhatsApp),
+  dashboard con balance consolidado, vínculo de billeteras, detalle por proveedor, flujos de
+  Enviar / Pedir (QR real) / Cambiar / Pagar QR (cámara real), confirmación con **biometría**
+  (Face ID / huella), perfil, soporte y reportes.
 
 ## Equipo
 
@@ -145,8 +150,11 @@ Resumen de los módulos:
 
 | Método | Ruta                 | Descripción                                  | Auth     |
 |--------|----------------------|----------------------------------------------|----------|
-| POST   | `/api/auth/register` | Registra un usuario (email único + BCrypt)   | Público  |
+| POST   | `/api/auth/register` | Registra un usuario (email único + BCrypt; **teléfono opcional**) y dispara el código de verificación por email | Público  |
 | POST   | `/api/auth/login`    | Valida credenciales y devuelve JWT con roles | Público  |
+| POST   | `/api/auth/verify-email` | Valida el código de 6 dígitos y marca el email como verificado | Público |
+| POST   | `/api/auth/forgot-password` / `/reset-password` | Pide y valida el código para restablecer la contraseña | Público |
+| POST   | `/api/auth/change-password` | Cambia la contraseña verificando la actual | 🔒 JWT |
 | GET    | `/api/auth/me`       | Devuelve el usuario del token                | 🔒 JWT   |
 
 ### Operaciones transaccionales — `OperacionesController`
@@ -172,7 +180,7 @@ Resumen de los módulos:
 | Módulo | Rutas | Auth |
 |--------|-------|------|
 | Movimientos | `GET /api/movimientos/me`, `GET/POST/PUT/DELETE /api/movimientos/*` | 🔒 JWT (lista: Admin) |
-| Contactos | `GET /api/contactos/{usuarioPropietarioId}`, `POST /api/contactos`, `DELETE /api/contactos/{prop}/{contacto}` | 🔒 JWT |
+| Contactos | `GET /api/contactos/me`, `POST /api/contactos/match` (cruza emails/teléfonos de la agenda con usuarios registrados), `POST /api/contactos`, `DELETE /api/contactos/{prop}/{contacto}` | 🔒 JWT |
 | Solicitudes de cobro | `GET /api/solicitudes-cobro/me`, `GET /{id}`, `POST`, `PUT /lineas/{detalleId}/pagar` | 🔒 JWT |
 | Soporte | `GET /api/tickets-soporte/me`, `GET /{id}`, `POST /api/tickets-soporte` | 🔒 JWT |
 | Métodos de pago | `GET /api/metodos-pago/usuario/{usuarioId}`, `POST`, `DELETE /{id}` | 🔒 JWT |
@@ -218,38 +226,72 @@ Instalá (una sola vez):
 
 ---
 
-### 2) Configurar el backend — **qué cambiar exactamente**
+### 2) Configurar el backend
 
-Editá **dos archivos** y cambiá estos valores por los tuyos:
+Son **dos cosas**: la connection string (en `appsettings.json`) y los **secretos** (en user-secrets,
+NO en el repo).
 
-**a) `backend/Billeteras.Apps.WebApiApp/appsettings.json`**
+#### 2.1) Connection string — `appsettings.json`
+
+En `backend/Billeteras.Apps.WebApiApp/appsettings.json` poné el nombre de **tu** servidor SQL:
 
 ```jsonc
 "ConnectionStrings": {
-  // Cambiá por el nombre de TU servidor SQL.
   // Si usás SQL Express local, normalmente es: localhost\SQLEXPRESS
-  "BilleterasDB": "Server=localhost\\SQLEXPRESS;Database=BilleterasDB;Integrated Security=True;TrustServerCertificate=True;"
-},
-"Neo4j": {
-  "Uri": "bolt://localhost:7687",
-  "User": "neo4j",
-  // Cambiá esto por la contraseña que pusiste al crear la instancia Neo4j.
-  "Password": "TU_PASSWORD_NEO4J"
-}
-```
-
-> Nota: en JSON la barra invertida se escribe doble → `localhost\\SQLEXPRESS`.
-
-**b) `backend/Billeteras.Apps.WebApiApp/appsettings.Development.json`**
-
-```jsonc
-"ConnectionStrings": {
+  // (en JSON la barra invertida va doble → localhost\\SQLEXPRESS)
   "BilleterasDB": "Server=localhost\\SQLEXPRESS;Database=BilleterasDB;Integrated Security=True;TrustServerCertificate=True;"
 }
 ```
 
-> Si **no** vas a usar Neo4j, no pasa nada: la API arranca igual y solo loguea un aviso. El resto
-> funciona contra SQL Server.
+> Ese archivo es **local de cada dev** (tu server SQL puede diferir del de tus compañeros): no
+> commitees tu cambio de connection string. En `appsettings.json` los campos de secretos
+> (`Jwt:Key`, `Neo4j:Password`, `Email:Password`) quedan **vacíos** a propósito → se completan en
+> user-secrets (siguiente paso).
+
+#### 2.2) Secretos con user-secrets (IMPORTANTE)
+
+Los datos sensibles **no van en el repo**. Usamos el **Secret Manager de .NET** (user-secrets):
+un `secrets.json` que vive **fuera del proyecto**, en tu perfil de Windows, y que .NET carga solo
+en entorno *Development* (sobrescribe lo que esté vacío en `appsettings.json`).
+
+- **Dónde se guarda físicamente** (cada dev el suyo, nunca se sube a git):
+  `C:\Users\TU_USUARIO\AppData\Roaming\Microsoft\UserSecrets\7fb6fcd6-39af-4099-b796-19d77cb54976\secrets.json`
+  (el GUID es el `<UserSecretsId>` del `.csproj`, ya está configurado; no lo cambies).
+
+- **Cómo cargar TUS secretos** — parate en la carpeta del proyecto y corré:
+
+  ```powershell
+  cd backend/Billeteras.Apps.WebApiApp
+
+  # 1) Clave para firmar los JWT. Generá una aleatoria (no la compartas):
+  #    (podés usar esta línea de PowerShell para generar una de 512 bits)
+  #    $b=New-Object byte[] 64; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); [Convert]::ToBase64String($b)
+  dotnet user-secrets set "Jwt:Key" "PEGA_ACA_TU_CLAVE_LARGA_Y_ALEATORIA"
+
+  # 2) Contraseña de tu instancia Neo4j (la que pusiste al crearla):
+  dotnet user-secrets set "Neo4j:Password" "TU_PASSWORD_NEO4J"
+
+  # 3) (Opcional) Envío de emails de verificación por Gmail:
+  dotnet user-secrets set "Email:User"     "tu_cuenta@gmail.com"
+  dotnet user-secrets set "Email:From"     "tu_cuenta@gmail.com"
+  dotnet user-secrets set "Email:Password" "APP_PASSWORD_DE_GMAIL_16_DIGITOS"
+  ```
+
+- **Ver / borrar** lo que tenés cargado:
+
+  ```powershell
+  dotnet user-secrets list      # lista todos tus secretos
+  dotnet user-secrets clear     # los borra todos
+  ```
+
+> **Email (opcional):** el `Email:Password` es una **Contraseña de aplicación** de Gmail (16
+> dígitos), no tu contraseña normal. Requiere tener la **verificación en 2 pasos** activada en la
+> cuenta → *Cuenta de Google → Seguridad → Contraseñas de aplicaciones*. Si no configurás el email,
+> la API **no se rompe**: el código de verificación se muestra igual en un banner en la consola del
+> backend, listo para copiar y pegar en la demo.
+
+> **Neo4j (opcional):** si no vas a usar el grafo, no cargues `Neo4j:Password`. La API arranca
+> igual y solo loguea un aviso; el resto funciona contra SQL Server.
 
 ---
 
@@ -307,10 +349,14 @@ pnpm start          # equivale a: expo start --lan
 
 ### 5) Probar el flujo
 
-1. **Crear cuenta** → te lleva al login con el email precargado.
-2. **Ingresar** con esas credenciales.
-3. **Conectar billetera** → elegí una y seguí el flujo (permisos → sincronizando → activa).
-4. Operá: **Enviar / Pedir (QR) / Cambiar / Pagar QR** (pide biometría antes de confirmar).
+1. **Crear cuenta** (nombre, email, teléfono opcional) → queda logueado automáticamente.
+2. **Verificar email** → ingresá el código de 6 dígitos. Llega al mail (si configuraste SMTP) o
+   aparece en un **banner en la consola del backend**. Podés tocar "Verificar más tarde".
+3. **Conectar contactos** *(opcional)* → en el celular pide permiso y lee tu agenda real; muestra
+   quién ya usa SaOT (para agregarlo) y te deja invitar o **pedir dinero por WhatsApp** al resto.
+   En web usa una lista demo. Se puede omitir.
+4. **Conectar billetera** → elegí una y seguí el flujo (permisos → sincronizando → activa).
+5. Operá: **Enviar / Pedir (QR) / Cambiar / Pagar QR** (pide biometría antes de confirmar).
 
 ---
 
