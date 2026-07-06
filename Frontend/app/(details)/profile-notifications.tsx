@@ -1,27 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ToggleRow } from '@/components/ToggleRow';
+import { useSettings } from '@/context/SettingsContext';
 import { colors, fonts } from '@/theme/tokens';
 
 // Perfil — pantalla de preferencias de notificaciones (push y email) con toggles.
+// Las preferencias viven en SettingsContext (persistidas en AsyncStorage), así se
+// mantienen al salir/volver de la pantalla y entre reinicios de la app.
 export default function ProfileNotificationsScreen() {
-    // Estados PUSH
-    const [pushTransacciones, setPushTransacciones] = useState(true);
-    const [pushSeguridad, setPushSeguridad] = useState(true);
-    const [pushPromociones, setPushPromociones] = useState(false);
-
-    // Estados EMAIL
-    const [emailTransacciones, setEmailTransacciones] = useState(true);
-    const [emailResumen, setEmailResumen] = useState(true);
-    const [emailPromociones, setEmailPromociones] = useState(false);
-
-    // Estados SONIDO Y VIBRACIÓN
-    const [sonido, setSonido] = useState(true);
-    const [vibracion, setVibracion] = useState(true);
+    const { settings, setSetting } = useSettings();
 
     return (
         <View style={styles.root}>
@@ -37,20 +28,20 @@ export default function ProfileNotificationsScreen() {
                         <ToggleRow
                             label="Transacciones"
                             sub="Cada vez que recibas o pagues"
-                            value={pushTransacciones}
-                            onValueChange={setPushTransacciones}
+                            value={settings.pushTransacciones}
+                            onValueChange={(v) => setSetting('pushTransacciones', v)}
                         />
                         <ToggleRow
                             label="Seguridad"
                             sub="Inicios de sesión, cambios"
-                            value={pushSeguridad}
-                            onValueChange={setPushSeguridad}
+                            value={settings.pushSeguridad}
+                            onValueChange={(v) => setSetting('pushSeguridad', v)}
                         />
                         <ToggleRow
                             label="Promociones"
                             sub="Novedades y ofertas"
-                            value={pushPromociones}
-                            onValueChange={setPushPromociones}
+                            value={settings.pushPromociones}
+                            onValueChange={(v) => setSetting('pushPromociones', v)}
                             isLast
                         />
                     </View>
@@ -60,18 +51,18 @@ export default function ProfileNotificationsScreen() {
                     <View style={styles.configGroup}>
                         <ToggleRow
                             label="Cada transacción"
-                            value={emailTransacciones}
-                            onValueChange={setEmailTransacciones}
+                            value={settings.emailTransacciones}
+                            onValueChange={(v) => setSetting('emailTransacciones', v)}
                         />
                         <ToggleRow
                             label="Resumen semanal"
-                            value={emailResumen}
-                            onValueChange={setEmailResumen}
+                            value={settings.emailResumen}
+                            onValueChange={(v) => setSetting('emailResumen', v)}
                         />
                         <ToggleRow
                             label="Promociones"
-                            value={emailPromociones}
-                            onValueChange={setEmailPromociones}
+                            value={settings.emailPromociones}
+                            onValueChange={(v) => setSetting('emailPromociones', v)}
                             isLast
                         />
                     </View>
@@ -81,13 +72,13 @@ export default function ProfileNotificationsScreen() {
                     <View style={styles.configGroup}>
                         <ToggleRow
                             label="Sonido al recibir"
-                            value={sonido}
-                            onValueChange={setSonido}
+                            value={settings.sonido}
+                            onValueChange={(v) => setSetting('sonido', v)}
                         />
                         <ToggleRow
                             label="Vibración"
-                            value={vibracion}
-                            onValueChange={setVibracion}
+                            value={settings.vibracion}
+                            onValueChange={(v) => setSetting('vibracion', v)}
                             isLast
                         />
                     </View>

@@ -23,6 +23,7 @@ import { WalletsProvider } from '@/context/WalletsContext';
 import { SplashScreen } from '@/components/SplashScreen';
 import { NotifProvider } from '@/context/NotifContext';
 import { ConfirmProvider } from '@/context/ConfirmContext';
+import { SettingsProvider } from '@/context/SettingsContext';
 
 // Duración mínima del splash custom para que se sienta intencional
 // (no un flash de un instante) aunque la sesión ya esté resuelta.
@@ -80,6 +81,12 @@ function AppWithProviders() {
             <Stack.Screen name="(request)" />
             <Stack.Screen name="(payqr)" />
           </Stack.Protected>
+
+          {/* Sin guard: signup hace login automático antes de navegar acá, así
+              que si esta pantalla quedara dentro de (auth) (guard !isAuthenticated)
+              o solo dentro del guard isAuthenticated, se rompería según el orden
+              de las llamadas. La dejamos siempre alcanzable. */}
+          <Stack.Screen name="verify-email" />
         </Stack>
         </ConfirmProvider>
       </NotifProvider>
@@ -104,10 +111,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      {/* SessionProvider va afuera: maneja JWT y datos del usuario */}
-      <SessionProvider>
-        <AppWithProviders />
-      </SessionProvider>
+      {/* SettingsProvider afuera de todo: preferencias de notificaciones/seguridad
+          persistidas en AsyncStorage, disponibles en toda la app. */}
+      <SettingsProvider>
+        {/* SessionProvider va afuera: maneja JWT y datos del usuario */}
+        <SessionProvider>
+          <AppWithProviders />
+        </SessionProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }

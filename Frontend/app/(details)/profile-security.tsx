@@ -1,17 +1,17 @@
 // Perfil — pantalla de ajustes de seguridad (Face ID, PIN, 2FA, pagos biométricos).
-import React, { useState } from 'react';
+// Los toggles viven en SettingsContext (persistidos en AsyncStorage), así se
+// mantienen al salir/volver de la pantalla y entre reinicios de la app.
+import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AuroraBackground } from '@/components/AuroraBackground';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useSettings } from '@/context/SettingsContext';
 import { colors, radii, spacing, type } from '@/theme/tokens';
 
 export default function ProfileSecurityScreen() {
-    const [faceId, setFaceId] = useState(true);
-    const [pin, setPin] = useState(true);
-    const [twoFactor, setTwoFactor] = useState(true);
-    const [bioPayments, setBioPayments] = useState(false);
+    const { settings, setSetting } = useSettings();
 
     return (
         <View style={styles.container}>
@@ -27,15 +27,15 @@ export default function ProfileSecurityScreen() {
                 <View style={styles.card}>
                     <ToggleRow
                         icon="lock" title="Face ID" subtitle="Desbloquear con tu rostro"
-                        value={faceId} onValueChange={setFaceId}
+                        value={settings.faceId} onValueChange={(v: boolean) => setSetting('faceId', v)}
                     />
                     <ToggleRow
                         icon="lock" title="PIN de la app" subtitle="Pedir PIN al abrir"
-                        value={pin} onValueChange={setPin}
+                        value={settings.pin} onValueChange={(v: boolean) => setSetting('pin', v)}
                     />
                     <ToggleRow
                         icon="lock" title="Autenticación en dos pasos" subtitle="Código adicional al ingresar"
-                        value={twoFactor} onValueChange={setTwoFactor} noBorder
+                        value={settings.twoFactor} onValueChange={(v: boolean) => setSetting('twoFactor', v)} noBorder
                     />
                 </View>
 
@@ -43,7 +43,7 @@ export default function ProfileSecurityScreen() {
                 <View style={styles.card}>
                     <ToggleRow
                         icon="credit-card" title="Confirmar con biometría" subtitle="Pedir Face ID al pagar"
-                        value={bioPayments} onValueChange={setBioPayments} noBorder
+                        value={settings.bioPayments} onValueChange={(v: boolean) => setSetting('bioPayments', v)} noBorder
                     />
                 </View>
 
