@@ -47,7 +47,7 @@ public class MovimientoRepositoryEF(BilleterasContext ctx) : IMovimientoReposito
         return await ctx.SaveChangesAsync() > 0;
     }
 
-    // ─── Paginado + filtrado REAL en la base (rúbrica 3.4 y 3.5) ─────────────────
+    // ─── Paginado + filtrado REAL en la base ( 3.4 y 3.5) ─────────────────
     public async Task<(List<Movimiento> Items, int TotalCount)> ObtenerPaginadoPorUsuarioAsync(
         int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
     {

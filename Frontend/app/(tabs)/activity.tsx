@@ -3,7 +3,7 @@
 // Header título + ícono lupa, filtros pill (Todos / Ingresos / Salientes),
 // filas agrupadas por bucket temporal (HOY / AYER / fechas).
 //
-// PAGINADO + FILTROS SERVER-SIDE (rúbrica 3.4 y 3.5):
+// PAGINADO + FILTROS SERVER-SIDE ( 3.4 y 3.5):
 // El filtro (tipo + texto) y el paginado NO se resuelven en el cliente: se
 // mandan como query params a GET /api/movimientos/me/paged y la API los
 // resuelve en la base (Skip/Take + WHERE). Acá solo acumulamos las páginas

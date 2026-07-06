@@ -5,7 +5,7 @@ using Billeteras.Negocio.Interfaces;
 
 namespace Billeteras.Apps.WebApiApp.Controllers;
 
-// Rúbrica 5.2 — todos los endpoints de la API deben estar autenticados.
+//  5.2 — todos los endpoints de la API deben estar autenticados.
 // Las billeteras (Mercado Pago, Ualá, etc.) son un catálogo global: cualquier
 // usuario autenticado puede leerlas, pero solo un Admin puede modificarlas.
 [ApiController]

@@ -58,7 +58,7 @@ public class MovimientoNegocio(IMovimientoRepository repo) : IMovimientoNegocio
     // Elimina el movimiento por Id (delega directo al repositorio).
     public Task<bool> EliminarAsync(int id) => repo.EliminarAsync(id);
 
-    // ─── Paginado + filtrado (rúbrica 3.4 y 3.5) ────────────────────────────────
+    // ─── Paginado + filtrado ( 3.4 y 3.5) ────────────────────────────────
     // Normaliza filtros, aplica límites defensivos y arma el PagedResult para el front.
     public async Task<PagedResult<MovimientoResponse>> ObtenerPaginadoPorUsuarioAsync(
         int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
