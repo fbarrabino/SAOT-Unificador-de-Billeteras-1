@@ -104,9 +104,13 @@ export default function ExchangeAmount() {
 
   function next() {
     if (!valid) return;
+    // Usamos las claves ya resueltas (fromWallet/toWallet), no el estado crudo
+    // from/to: esos pueden seguir apuntando a un default ('mp'/'lm') que no
+    // está entre las billeteras reales del usuario, mientras que fromWallet/
+    // toWallet ya cayeron al fallback correcto (la billetera que sí existe).
     router.push({
       pathname: '/(exchange)/confirm',
-      params: { from, to, amt: String(n), fee: String(fee) },
+      params: { from: fromWallet.key, to: toWallet.key, amt: String(n), fee: String(fee) },
     });
   }
 
