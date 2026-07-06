@@ -29,21 +29,21 @@ builder.Services.AddScoped<ICategoriaRepository, CategoriaRepositoryEF>();
 builder.Services.AddScoped<ICuentaBilleteraRepository, CuentaBilleteraRepositoryEF>();
 builder.Services.AddScoped<IMovimientoRepository, MovimientoRepositoryEF>();
 
-// --- NUESTROS REPOSITORIOS (BE-02) ---
+// --- NUESTROS REPOSITORIOS ---
 builder.Services.AddScoped<IMetodoPagoExternoRepository, MetodoPagoExternoRepositoryEF>();
 builder.Services.AddScoped<ITicketSoporteRepository, TicketSoporteRepositoryEF>();
 
-// --- MAESTRO-DETALLE: Tickets de Soporte (BE-07) ---
+// --- MAESTRO-DETALLE: Tickets de Soporte ---
 builder.Services.AddScoped<ITicketSoporteNegocio, TicketSoporteNegocio>();
 
 // --- MAESTRO-DETALLE: Solicitudes de Cobro ---
 builder.Services.AddScoped<ISolicitudCobroRepository, SolicitudCobroRepositoryEF>();
 builder.Services.AddScoped<ISolicitudCobroNegocio, SolicitudCobroNegocio>();
-// --- OPERACIONES TRANSACCIONALES (BE-03/04/05) ---
+// --- OPERACIONES TRANSACCIONALES  ---
 builder.Services.AddScoped<IOperacionesRepository, OperacionesRepositoryEF>();
 builder.Services.AddScoped<IOperacionesNegocio, OperacionesNegocio>();
 
-// --- NEO4J (BD-04) ---
+// --- NEO4J ---
 // El IDriver del paquete es thread-safe → singleton para reusar el pool de
 // conexiones entre requests. La instancia se crea desde el config "Neo4j".
 builder.Services.AddSingleton<INeo4jService, Neo4jService>();
@@ -56,7 +56,7 @@ builder.Services.AddScoped<ICuentaBilleteraNegocio, CuentaBilleteraNegocio>();
 builder.Services.AddScoped<IMovimientoNegocio, MovimientoNegocio>();
 builder.Services.AddScoped<IContactoRepository, ContactoRepositoryEF>();
 
-// --- Códigos de verificación: reset de contraseña / verificación de email (A3/A4/A8) ---
+// --- Códigos de verificación: reset de contraseña / verificación de email  ---
 builder.Services.AddScoped<ICodigoVerificacionRepository, CodigoVerificacionRepositoryEF>();
 builder.Services.AddScoped<IVerificacionNegocio, VerificacionNegocio>();
 // Envío real de los códigos por email (SMTP / MailKit). Config en sección "Email".
@@ -105,7 +105,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews();
 
-// ─── Swagger / OpenAPI (rúbrica 6.3 — documentación de la API) ────────────────
+// ─── Swagger / OpenAPI ────────────────
 // Genera la doc interactiva en /swagger. Con AddSecurityDefinition sumamos el
 // botón "Authorize" para pegar el JWT y probar los endpoints protegidos.
 builder.Services.AddEndpointsApiExplorer();
@@ -139,7 +139,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// ─── CORS restrictivo (rúbrica 5.3 / OWASP) ──────────────────────────────────
+// ─── CORS restrictivo ──────────────────────────────────
 // En vez de abrir a "*", permitimos SOLO los orígenes declarados en appsettings
 // ("Cors:AllowedOrigins"). Si no hay ninguno configurado, caemos a los orígenes
 // típicos de desarrollo (Expo web / Metro). La app móvil nativa no usa CORS, así
@@ -169,7 +169,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ─── Neo4j: constraints de unicidad (BD-04) ──────────────────────────────────
+// ─── Neo4j: constraints de unicidad ──────────────────────────────────
 // Se ejecutan una sola vez al arrancar; los IF NOT EXISTS los hacen idempotentes.
 // Si Neo4j no está corriendo (o falla el login), logueamos y seguimos: la API
 // queda usable contra SQL aunque el grafo no esté disponible.
@@ -198,7 +198,7 @@ app.UseSwaggerUI(o =>
     o.DocumentTitle = "Billeteras API — Swagger";
 });
 
-// ─── Security headers (rúbrica 5.3 / OWASP) ──────────────────────────────────
+// ─── Security headers  ──────────────────────────────────
 // Cabeceras defensivas en TODAS las respuestas: evitan MIME sniffing, embebido
 // en iframes (clickjacking) y fuga de la URL por Referer.
 app.Use(async (context, next) =>

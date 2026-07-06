@@ -110,7 +110,7 @@ INSERT INTO dbo.Movimiento (CuentaBilleteraId, CategoriaId, Fecha, Descripcion, 
 -- ── 3b. Generación masiva de movimientos (para demostrar PAGINADO real) ────────
 -- Insertamos 80 movimientos MÁS, repartidos en las 3 cuentas, con montos y
 -- fechas variados (últimos 90 días). Con esto el listado paginado del front
--- tiene varias páginas para recorrer (rúbrica 1.4 "datos suficientes para
+-- tiene varias páginas para recorrer ( 1.4 "datos suficientes para
 -- paginado" y 3.5 "listado paginado real"). ~20% son ingresos, el resto egresos.
 DECLARE @i INT = 1;
 DECLARE @cuentaSel INT, @catSel INT, @tipoTxt NVARCHAR(10);

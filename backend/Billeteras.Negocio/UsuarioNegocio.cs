@@ -35,6 +35,8 @@ public class UsuarioNegocio(IUsuarioRepository repo) : IUsuarioNegocio
             Nombre = Sanitizador.LimpiarTexto(req.Nombre)!,
             Apellido = Sanitizador.LimpiarTexto(req.Apellido)!,
             Email = req.Email,
+            // Teléfono opcional (saneado): sirve para el cruce de contactos por número.
+            Telefono = string.IsNullOrWhiteSpace(req.Telefono) ? null : Sanitizador.LimpiarTexto(req.Telefono),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password)
         };
 

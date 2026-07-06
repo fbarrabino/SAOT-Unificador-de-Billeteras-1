@@ -12,7 +12,7 @@ namespace Billeteras.Negocio;
 ///
 /// Es una limpieza conservadora: quita bloques &lt;script&gt; y cualquier etiqueta
 /// HTML suelta, y recorta espacios. No toca el texto normal del usuario.
-/// (Rúbrica 5.3 — Buenas prácticas OWASP.)
+/// ( 5.3 — Buenas prácticas OWASP.)
 public static partial class Sanitizador
 {
     // <script ...>...</script> completo, incluido su contenido.

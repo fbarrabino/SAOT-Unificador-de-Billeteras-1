@@ -140,7 +140,7 @@ export async function fetchMisMovimientos(): Promise<ActivityItem[]> {
   }
 }
 
-// ─── Paginado + filtros (rúbrica 3.4 y 3.5) ─────────────────────────────────────
+// ─── Paginado + filtros ( 3.4 y 3.5) ─────────────────────────────────────
 
 /** Forma cruda del PagedResult<T> que devuelve el backend (camelCase). */
 interface PagedResultRaw<T> {

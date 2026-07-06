@@ -46,6 +46,12 @@
         {
           "photosPermission": "SaOT necesita acceso a tus fotos para que elijas tu foto de perfil."
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "SaOT usa tus contactos para mostrarte cuáles ya usan la app y así enviarles dinero más fácil."
+        }
       ]
     ],
     "experiments": {

@@ -99,13 +99,13 @@ public class MovimientoRepositoryAdo(string connectionString) : IMovimientoRepos
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
-    // ─── Paginado + filtrado REAL en la base (rúbrica 3.4 y 3.5) ─────────────────
+    // ─── Paginado + filtrado REAL en la base ( 3.4 y 3.5) ─────────────────
     // Arma un WHERE dinámico parametrizado y devuelve la página pedida + el total.
     public async Task<(List<Movimiento> Items, int TotalCount)> ObtenerPaginadoPorUsuarioAsync(
         int usuarioId, string? tipo, string? texto, int pageNumber, int pageSize)
     {
         // WHERE dinámico pero SIEMPRE parametrizado: nunca concatenamos los
-        // valores del usuario dentro del SQL → inmune a SQL injection (rúbrica 5.3).
+        // valores del usuario dentro del SQL → inmune a SQL injection ( 5.3).
         var where = new System.Text.StringBuilder(" WHERE c.UsuarioId = @usuarioId");
         if (!string.IsNullOrWhiteSpace(tipo))
             where.Append(" AND m.Tipo = @tipo");

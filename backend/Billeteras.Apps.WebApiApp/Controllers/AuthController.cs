@@ -23,7 +23,7 @@ public class AuthController(
     public async Task<ActionResult<UsuarioResponse>> Register([FromBody] RegisterRequest req)
     {
         var creado = await usuarios.RegistrarAsync(
-            new RegistrarUsuarioRequest(req.Nombre, req.Apellido, req.Email, req.Password));
+            new RegistrarUsuarioRequest(req.Nombre, req.Apellido, req.Email, req.Password, req.Telefono));
 
         if (creado is null)
             return BadRequest(new { mensaje = "Ya existe un usuario con ese email." });

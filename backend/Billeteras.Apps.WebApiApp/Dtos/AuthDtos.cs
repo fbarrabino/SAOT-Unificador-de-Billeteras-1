@@ -10,7 +10,9 @@ public record RegisterRequest(
     [Required, MaxLength(100)] string Nombre,
     [Required, MaxLength(100)] string Apellido,
     [Required, EmailAddress, MaxLength(200)] string Email,
-    [Required, MinLength(6), MaxLength(100)] string Password);
+    [Required, MinLength(6), MaxLength(100)] string Password,
+    // Opcional: habilita el cruce de contactos por número de teléfono.
+    [MaxLength(30)] string? Telefono = null);
 
 /// Cuerpo de POST /api/auth/login.
 /// DispositivoNombre es opcional: lo manda el FE (ej. "iPhone · App") para
