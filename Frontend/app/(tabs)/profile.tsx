@@ -102,6 +102,17 @@ export default function Profile() {
               </RowIcon>
             </Row>
 
+            <Row label="Contactos" sub="Reconectar agenda del teléfono" onPress={() => router.push('/connect-contacts')}>
+              <RowIcon>
+                <Svg width={20} height={20} viewBox="0 0 24 24" {...ICON_PROPS(colors.cyan)}>
+                  <Path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                  <Circle cx={9} cy={7} r={4} />
+                  <Path d="M22 21v-2a4 4 0 00-3-3.87" />
+                  <Path d="M16 3.13a4 4 0 010 7.75" />
+                </Svg>
+              </RowIcon>
+            </Row>
+
             <Row label="Notificaciones" sub="Push, email" onPress={() => router.push('/profile-notifications')}>
               <RowIcon>
                 <Svg width={20} height={20} viewBox="0 0 24 24" {...ICON_PROPS(colors.cyan)}>
